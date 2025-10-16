@@ -6,7 +6,7 @@ const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY!;
 const MIDTRANS_CLIENT = new midtransClient.CoreApi({
   isProduction: true,
   serverKey: MIDTRANS_SERVER_KEY,
-  clientKey: process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY!,
+  clientKey: process.env.MIDTRANS_CLIENT_KEY!,
 });
 
 // ⬅️ tipe untuk item, customer, dan charge param
