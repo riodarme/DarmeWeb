@@ -4,7 +4,7 @@ import midtransClient from "midtrans-client";
 
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY!;
 const MIDTRANS_CLIENT = new midtransClient.CoreApi({
-  isProduction: false,
+  isProduction: true,
   serverKey: MIDTRANS_SERVER_KEY,
   clientKey: process.env.MIDTRANS_CLIENT_KEY!,
 });
