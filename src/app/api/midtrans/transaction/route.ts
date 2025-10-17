@@ -1,15 +1,26 @@
-// /app/api/midtrans/transaction/route.ts
 import { NextResponse } from "next/server";
 import midtransClient from "midtrans-client";
 
-const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY!;
+// 🔐 Ambil environment variables dari Vercel
+const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || "";
+const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || "";
+const MIDTRANS_IS_PRODUCTION = true; // ✅ mode produksi
+
+// ⚠️ Log peringatan jika key kosong
+if (!MIDTRANS_SERVER_KEY) {
+  console.error("❌ MIDTRANS_SERVER_KEY belum diatur di Environment Variable!");
+}
+
+// 🔧 Inisialisasi Midtrans Core API Client
 const MIDTRANS_CLIENT = new midtransClient.CoreApi({
-  isProduction: true,
+  isProduction: MIDTRANS_IS_PRODUCTION,
   serverKey: MIDTRANS_SERVER_KEY,
-  clientKey: process.env.MIDTRANS_CLIENT_KEY!,
+  clientKey: MIDTRANS_CLIENT_KEY,
 });
 
-// ⬅️ tipe untuk item, customer, dan charge param
+// -------------------------------
+// 📦 Tipe data transaksi
+// -------------------------------
 interface ItemDetail {
   id: string;
   name?: string;
@@ -55,6 +66,9 @@ interface ChargeResponse {
   actions?: Action[];
 }
 
+// -------------------------------
+// 🚀 Endpoint untuk charge transaksi
+// -------------------------------
 export async function POST(req: Request) {
   try {
     const {
@@ -100,6 +114,7 @@ export async function POST(req: Request) {
 
     const chargeParams: ChargeParams = { ...baseParams };
 
+    // 🎯 Tentukan metode pembayaran
     switch (payment_method) {
       case "qris":
       case "dana":
@@ -137,10 +152,12 @@ export async function POST(req: Request) {
         );
     }
 
+    // 💰 Kirim request ke Midtrans Core API
     const chargeResponse: ChargeResponse = await MIDTRANS_CLIENT.charge(
       chargeParams
     );
 
+    // 🔗 Ambil URL redirect (jika ada)
     const redirect_url = chargeResponse.actions?.find((a) =>
       ["deeplink-redirect", "mobile", "desktop"].includes(a.name)
     )?.url;
