@@ -18,7 +18,7 @@ interface PaymentSectionProps {
   paymentMethods?: string[];
   requireName?: boolean;
   buyerName?: string;
-  buyerId?: string; // nomor HP untuk Digiflazz
+  buyerId?: string; // nomor HP
   onConfirm?: (email: string, name: string, paymentMethod: string) => void;
 }
 
@@ -57,46 +57,53 @@ export default function PaymentSection({
     paymentMethod
   );
 
+  // 🔒 Fungsi kecil untuk bersihkan input dari karakter berbahaya
+  const sanitize = (str: string) => str.replace(/[<>]/g, "").trim();
+
   const handlePay = async () => {
     setErrorMessage("");
     setSuccessMessage("");
     setLoading(true);
 
-    if (!email) {
+    const safeEmail = sanitize(email);
+    const safeName = sanitize(name || buyerName || "Guest");
+
+    if (!safeEmail) {
       setErrorMessage("Masukkan email agar invoice terkirim!");
       setLoading(false);
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeEmail)) {
       setErrorMessage("Format email tidak valid.");
       setLoading(false);
       return;
     }
-    if (requireName && !name) {
+    if (requireName && !safeName) {
       setErrorMessage("Nama wajib diisi.");
       setLoading(false);
       return;
     }
 
     if (onConfirm) {
-      onConfirm(email, name || buyerName || "Guest", paymentMethod);
+      onConfirm(safeEmail, safeName, paymentMethod);
       setLoading(false);
       return;
     }
 
     const order_id = `ORDER-${Date.now()}`;
+    const controller = new AbortController();
 
-    // ganti bagian catch di handlePay
     try {
       const res = await fetch("/api/midtrans/transaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           order_id,
           gross_amount: total,
           customer_details: {
-            name: name || buyerName || "Guest",
-            email,
+            name: safeName,
+            email: safeEmail,
             phone: buyerId || "",
           },
           item_details: [
@@ -112,8 +119,14 @@ export default function PaymentSection({
         }),
       });
 
-      const data: MidtransTransactionResponse = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Gagal membuat transaksi");
+      let data: MidtransTransactionResponse;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error("Gagal membaca respons dari server Midtrans.");
+      }
+
+      if (!res.ok) throw new Error(data?.error || "Gagal membuat transaksi.");
 
       setModalData(data);
       setShowModal(true);
@@ -121,11 +134,17 @@ export default function PaymentSection({
     } catch (err: unknown) {
       console.error("Payment Error:", err);
       if (err instanceof Error) {
-        setErrorMessage(err.message);
+        if (err.name === "AbortError") return; // abaikan jika request dibatalkan
+        setErrorMessage(
+          err.message.includes("recovering")
+            ? "Sistem pembayaran sedang gangguan, coba lagi nanti."
+            : err.message || "Gagal memproses pembayaran."
+        );
       } else {
-        setErrorMessage("Gagal memproses pembayaran.");
+        setErrorMessage("Terjadi kesalahan tak terduga.");
       }
     } finally {
+      controller.abort();
       setLoading(false);
     }
   };
@@ -214,7 +233,7 @@ export default function PaymentSection({
         {/* Tombol Bayar */}
         <button
           onClick={handlePay}
-          disabled={loading}
+          disabled={loading || !email || (requireName && !name)}
           className={`w-full py-3 rounded-lg font-bold text-sm transition ${
             loading
               ? "bg-gray-400 cursor-not-allowed"
@@ -248,7 +267,7 @@ export default function PaymentSection({
             </h2>
 
             <div className="flex flex-col items-center gap-4">
-              {/* 🔹 QR Image */}
+              {/* QR Image */}
               {modalData.qr_string?.startsWith("data:image") && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -258,7 +277,7 @@ export default function PaymentSection({
                 />
               )}
 
-              {/* 🔹 Kode Bayar */}
+              {/* Kode Bayar */}
               {modalData.payment_code && (
                 <div className="text-center">
                   <p className="text-sm text-gray-500">Kode Pembayaran</p>
@@ -281,7 +300,7 @@ export default function PaymentSection({
                 </div>
               )}
 
-              {/* 🔹 Link Pembayaran */}
+              {/* Link Pembayaran */}
               {modalData.redirect_url && (
                 <a
                   href={modalData.redirect_url}
@@ -293,11 +312,11 @@ export default function PaymentSection({
                 </a>
               )}
 
-              {/* 🔹 Default */}
+              {/* Default */}
               {!modalData.qr_string &&
                 !modalData.payment_code &&
                 !modalData.redirect_url && (
-                  <p className="text-gray-600 text-sm">
+                  <p className="text-gray-600 text-sm text-center">
                     Transaksi berhasil dibuat. Silakan cek status pembayaran.
                   </p>
                 )}
