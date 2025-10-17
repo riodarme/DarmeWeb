@@ -8,7 +8,11 @@ import UniversalInput from "@/components/UniversalInput";
 import OperatorSection from "@/components/OperatorSection";
 import PaymentSection, { TransactionItem } from "@/components/PaymentSection";
 import { Operator, PulsaItem, ApiPulsaItem } from "@/types";
-import { operatorPrefixes, operatorBrandMap, operatorLogos } from "@/constants/operator";
+import {
+  operatorPrefixes,
+  operatorBrandMap,
+  operatorLogos,
+} from "@/constants/operator";
 import { applyPulsaMarkup, calculateTotalWithFee } from "@/utils/pricing";
 
 interface TrxModalData {
@@ -22,10 +26,14 @@ export default function PulsaPage() {
   const [phone, setPhone] = useState("");
   const [operator, setOperator] = useState<Operator | "">("");
   const [pulsaList, setPulsaList] = useState<PulsaItem[]>([]);
-  const [selectedItem, setSelectedItem] = useState<TransactionItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<TransactionItem | null>(
+    null
+  );
   const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const [trxSuccessModal, setTrxSuccessModal] = useState<TrxModalData | null>(null);
+  const [trxSuccessModal, setTrxSuccessModal] = useState<TrxModalData | null>(
+    null
+  );
   const [countdown, setCountdown] = useState(0);
   const paymentRef = useRef<HTMLDivElement | null>(null);
 
@@ -35,7 +43,10 @@ export default function PulsaPage() {
     setPhone(value);
     if (value.length < 4) return setOperator("");
     const prefix = value.slice(0, 4);
-    const found = (Object.entries(operatorPrefixes) as [Operator, string[]][]).find(([, list]) => list.includes(prefix))?.[0] ?? "";
+    const found =
+      (Object.entries(operatorPrefixes) as [Operator, string[]][]).find(
+        ([, list]) => list.includes(prefix)
+      )?.[0] ?? "";
     setOperator(found);
   };
 
@@ -49,7 +60,11 @@ export default function PulsaPage() {
         if (!Array.isArray(json.data)) return setPulsaList([]);
         const brands = operatorBrandMap[operator];
         const onlyPulsa: PulsaItem[] = json.data
-          .filter((i) => i.category?.toLowerCase() === "pulsa" && brands.some((b) => i.brand?.toLowerCase().includes(b)))
+          .filter(
+            (i) =>
+              i.category?.toLowerCase() === "pulsa" &&
+              brands.some((b) => i.brand?.toLowerCase().includes(b))
+          )
           .map((i) => ({
             nominal: i.product_name,
             harga: applyPulsaMarkup(Number(i.price ?? 0)),
@@ -84,12 +99,23 @@ export default function PulsaPage() {
     }
   }, [selectedItem]);
 
-  const handleConfirm = async (email: string, name: string, paymentMethod = "qris") => {
-    if (!selectedItem || !selectedItem.sku || !phone || !email.includes("@")) return;
+  const handleConfirm = async (
+    email: string,
+    name: string,
+    paymentMethod = "qris"
+  ) => {
+    if (!selectedItem || !selectedItem.sku || !phone || !email.includes("@"))
+      return;
 
-    const { total, fee_value, fee_label } = calculateTotalWithFee(selectedItem.price, paymentMethod);
+    const { total, fee_value, fee_label } = calculateTotalWithFee(
+      selectedItem.price,
+      paymentMethod
+    );
     const order_id = `PULSA-${Date.now()}`;
-    const itemName = selectedItem.label.length > 50 ? selectedItem.label.slice(0, 47) + "..." : selectedItem.label;
+    const itemName =
+      selectedItem.label.length > 50
+        ? selectedItem.label.slice(0, 47) + "..."
+        : selectedItem.label;
 
     try {
       const res = await fetch("/api/midtrans/transaction", {
@@ -149,65 +175,146 @@ export default function PulsaPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100 py-8 px-4">
       <div className="container mx-auto max-w-2xl">
-        <motion.div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-emerald-100" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-          <UniversalInput value={phone} onChange={detectOperator} operator={operator} logo={operator ? operatorLogos[operator] : undefined} title="Isi Pulsa Online" />
-          {operator && <OperatorSection operator={operator} logo={operatorLogos[operator]} itemsList={pulsaList} onSelect={handleSelectItem} loading={loading} />}
+        <motion.div
+          className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-emerald-100"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <UniversalInput
+            value={phone}
+            onChange={detectOperator}
+            operator={operator}
+            logo={operator ? operatorLogos[operator] : undefined}
+            title="Isi Pulsa Online"
+          />
+          {operator && (
+            <OperatorSection
+              operator={operator}
+              logo={operatorLogos[operator]}
+              itemsList={pulsaList}
+              onSelect={handleSelectItem}
+              loading={loading}
+            />
+          )}
         </motion.div>
 
         {selectedItem && (
-          <motion.div ref={paymentRef} className="mt-6 scroll-mt-20" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-            <PaymentSection items={[selectedItem]} onConfirm={handleConfirm} paymentMethods={["qris", "dana", "ovo", "gopay", "shopeepay", "alfamart"]} />
+          <motion.div
+            ref={paymentRef}
+            className="mt-6 scroll-mt-20"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <PaymentSection
+              items={[selectedItem]}
+              onConfirm={handleConfirm}
+              paymentMethods={[
+                "qris",
+                "dana",
+                "ovo",
+                "gopay",
+                "shopeepay",
+                "alfamart",
+              ]}
+            />
           </motion.div>
         )}
 
-        {trxSuccessModal?.visible && <TransactionModal data={trxSuccessModal} countdown={countdown} onClose={() => setTrxSuccessModal(null)} />}
+        {trxSuccessModal?.visible && (
+          <TransactionModal
+            data={trxSuccessModal}
+            countdown={countdown}
+            onClose={() => setTrxSuccessModal(null)}
+          />
+        )}
       </div>
     </div>
   );
 }
 
-function TransactionModal({ data, countdown, onClose }: { data: TrxModalData; countdown?: number; onClose: () => void }) {
+function TransactionModal({
+  data,
+  countdown,
+  onClose,
+}: {
+  data: TrxModalData;
+  countdown?: number;
+  onClose: () => void;
+}) {
   const isQR = data.token ? data.token.startsWith("data:image") : false;
   const isLink = data.token ? data.token.startsWith("http") : false;
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} className="bg-white p-6 rounded-2xl max-w-sm w-full shadow-xl text-center">
-        <h2 className="text-xl font-semibold mb-3 text-emerald-700">{data.message}</h2>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="bg-white p-6 rounded-2xl max-w-sm w-full shadow-xl text-center"
+      >
+        <h2 className="text-xl font-semibold mb-3 text-emerald-700">
+          {data.message}
+        </h2>
 
         {isQR && data.token && (
           <>
             {data.token.startsWith("data:image") ? (
               // fallback inline base64
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.token} alt="QR Code" className="mx-auto w-48 h-48 mb-4 rounded-lg border" />
+              <img
+                src={data.token}
+                alt="QR Code"
+                className="mx-auto w-48 h-48 mb-4 rounded-lg border"
+              />
             ) : (
-              <Image src={data.token} alt="QR Code" width={192} height={192} className="mx-auto mb-4 rounded-lg border" />
+              <Image
+                src={data.token}
+                alt="QR Code"
+                width={192}
+                height={192}
+                className="mx-auto mb-4 rounded-lg border"
+              />
             )}
             {countdown && countdown > 0 && (
               <p className="text-sm text-gray-500 mt-2">
-                QR berlaku {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, "0")}
+                QR berlaku {Math.floor(countdown / 60)}:
+                {(countdown % 60).toString().padStart(2, "0")}
               </p>
             )}
           </>
         )}
 
         {isLink && data.token && (
-          <a href={data.token} target="_blank" rel="noopener noreferrer" className="block mt-4 bg-emerald-500 text-white py-2 rounded-lg font-medium hover:bg-emerald-600 transition">
+          <a
+            href={data.token}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block mt-4 bg-emerald-500 text-white py-2 rounded-lg font-medium hover:bg-emerald-600 transition"
+          >
             Buka Link Pembayaran
           </a>
         )}
 
         {!isQR && !isLink && data.token && (
           <div className="flex flex-col items-center gap-2">
-            <p className="text-sm font-mono bg-gray-100 p-2 rounded">{data.token}</p>
-            <button onClick={() => navigator.clipboard.writeText(data.token || "")} className="text-xs text-emerald-600 hover:underline">
+            <p className="text-sm font-mono bg-gray-100 p-2 rounded">
+              {data.token}
+            </p>
+            <button
+              onClick={() => navigator.clipboard.writeText(data.token || "")}
+              className="text-xs text-emerald-600 hover:underline"
+            >
               Salin Kode
             </button>
           </div>
         )}
 
-        <button className="mt-5 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition" onClick={onClose}>
+        <button
+          className="mt-5 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition"
+          onClick={onClose}
+        >
           Tutup
         </button>
       </motion.div>
