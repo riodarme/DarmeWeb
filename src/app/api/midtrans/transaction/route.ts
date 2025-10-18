@@ -6,6 +6,8 @@ const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || "";
 const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || "";
 const MIDTRANS_IS_PRODUCTION = true; // ✅ mode produksi
 
+console.log("Server Key Prefix:", MIDTRANS_SERVER_KEY.slice(0, 5));
+
 // ⚠️ Log peringatan jika key kosong
 if (!MIDTRANS_SERVER_KEY) {
   console.log("Server Key:", MIDTRANS_SERVER_KEY ? "✅ Loaded" : "❌ Missing");
