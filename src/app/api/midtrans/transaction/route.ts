@@ -9,6 +9,7 @@ const MIDTRANS_IS_PRODUCTION = true; // ✅ mode produksi
 // ⚠️ Log peringatan jika key kosong
 if (!MIDTRANS_SERVER_KEY) {
   console.error("❌ MIDTRANS_SERVER_KEY belum diatur di Environment Variable!");
+  console.log("🔍 isProduction:", true);
 }
 
 // 🔧 Inisialisasi Midtrans Core API Client
