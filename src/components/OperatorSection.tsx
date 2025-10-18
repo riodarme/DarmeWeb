@@ -41,14 +41,13 @@ export default function OperatorSection({
       {/* Header Operator */}
       <div className="flex items-center gap-4 mb-6">
         {logo ? (
-          <div className="w-14 h-14 relative rounded-full overflow-hidden">
+          <div className="w-14 h-14 flex items-center justify-center bg-white rounded-md">
             <Image
               src={logo}
               alt={operator}
-              className="object-cover w-full h-full"
-              width={56} // w-14 = 56px
-              height={56} // h-14 = 56px
-              priority
+              width={40}
+              height={40}
+              className="object-contain"
             />
           </div>
         ) : (
