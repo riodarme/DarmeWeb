@@ -3,8 +3,8 @@ import midtransClient from "midtrans-client";
 
 // 🔐 Ambil environment variables dari Vercel
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || "";
-const NEXT_PUBLIC_MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || "";
-const MIDTRANS_IS_PRODUCTION = true; // ✅ mode produksi
+const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || "";
+const MIDTRANS_IS_PRODUCTION = false; // ✅ mode produksi
 
 // ⚠️ Log peringatan jika key kosong
 if (!MIDTRANS_SERVER_KEY) {
@@ -15,7 +15,7 @@ if (!MIDTRANS_SERVER_KEY) {
 const MIDTRANS_CLIENT = new midtransClient.CoreApi({
   isProduction: MIDTRANS_IS_PRODUCTION,
   serverKey: MIDTRANS_SERVER_KEY,
-  clientKey: NEXT_PUBLIC_MIDTRANS_CLIENT_KEY!,
+  clientKey: MIDTRANS_CLIENT_KEY,
 });
 
 // -------------------------------
