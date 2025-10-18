@@ -1,42 +1,26 @@
 import { NextResponse } from "next/server";
 import midtransClient from "midtrans-client";
 
-// ==========================
-// 🔐 ENVIRONMENT VARIABLES
-// ==========================
+// 🔐 Ambil environment variables dari Vercel
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || "";
-const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || "";
-const MIDTRANS_IS_PRODUCTION = true; // ✅ Production mode
+const NEXT_PUBLIC_MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || "";
+const MIDTRANS_IS_PRODUCTION = true; // ✅ mode produksi
 
-// 🧩 Log awal
-console.log("=== MIDTRANS CONFIG ===");
-console.log(
-  "Server Key Prefix:",
-  MIDTRANS_SERVER_KEY?.slice(0, 5) || "❌ none"
-);
-console.log(
-  "Client Key Prefix:",
-  MIDTRANS_CLIENT_KEY?.slice(0, 5) || "❌ none"
-);
-console.log("Is Production:", MIDTRANS_IS_PRODUCTION);
-console.log("========================");
-
+// ⚠️ Log peringatan jika key kosong
 if (!MIDTRANS_SERVER_KEY) {
-  console.warn("⚠️ MIDTRANS_SERVER_KEY is missing in environment variables!");
+  console.error("❌ MIDTRANS_SERVER_KEY belum diatur di Environment Variable!");
 }
 
-// ==========================
-// 🔧 INIT MIDTRANS CLIENT
-// ==========================
+// 🔧 Inisialisasi Midtrans Core API Client
 const MIDTRANS_CLIENT = new midtransClient.CoreApi({
   isProduction: MIDTRANS_IS_PRODUCTION,
   serverKey: MIDTRANS_SERVER_KEY,
-  clientKey: MIDTRANS_CLIENT_KEY,
+  clientKey: NEXT_PUBLIC_MIDTRANS_CLIENT_KEY!,
 });
 
-// ==========================
-// 📦 TYPES
-// ==========================
+// -------------------------------
+// 📦 Tipe data transaksi
+// -------------------------------
 interface ItemDetail {
   id: string;
   name?: string;
@@ -82,9 +66,9 @@ interface ChargeResponse {
   actions?: Action[];
 }
 
-// ==========================
-// 🚀 HANDLE POST REQUEST
-// ==========================
+// -------------------------------
+// 🚀 Endpoint untuk charge transaksi
+// -------------------------------
 export async function POST(req: Request) {
   try {
     const {
@@ -168,20 +152,10 @@ export async function POST(req: Request) {
         );
     }
 
-    // 🧾 Debug log sebelum request ke Midtrans
-    console.log("=== CHARGE REQUEST ===");
-    console.log("Order ID:", order_id);
-    console.log("Payment Method:", payment_method);
-    console.log("Gross Amount:", gross_amount);
-    console.log("Charge Params:", JSON.stringify(chargeParams, null, 2));
-    console.log("======================");
-
     // 💰 Kirim request ke Midtrans Core API
     const chargeResponse: ChargeResponse = await MIDTRANS_CLIENT.charge(
       chargeParams
     );
-
-    console.log("✅ Midtrans Charge Response:", chargeResponse);
 
     // 🔗 Ambil URL redirect (jika ada)
     const redirect_url = chargeResponse.actions?.find((a) =>
@@ -198,17 +172,10 @@ export async function POST(req: Request) {
       payment_code: chargeResponse.payment_code,
       redirect_url,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Midtrans Error:", error);
-    return NextResponse.json(
-      {
-        error:
-          "Midtrans API is returning API error. " +
-          (error.ApiResponse
-            ? JSON.stringify(error.ApiResponse)
-            : error.message || "Unknown error"),
-      },
-      { status: 500 }
-    );
+    let message = "Gagal membuat transaksi Midtrans";
+    if (error instanceof Error) message = error.message;
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
