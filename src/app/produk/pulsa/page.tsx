@@ -124,7 +124,13 @@ export default function PulsaPage() {
         body: JSON.stringify({
           order_id,
           gross_amount: total,
-          customer_details: { name, email, phone },
+          payment_method: paymentMethod,
+          transaction_details: { order_id, gross_amount: total },
+          customer_details: {
+            first_name: name,
+            email,
+            phone,
+          },
           item_details: [
             {
               id: selectedItem.sku,
@@ -134,10 +140,6 @@ export default function PulsaPage() {
             },
             { id: "fee", name: fee_label, price: fee_value, quantity: 1 },
           ],
-          payment_method: paymentMethod,
-          custom_field1: selectedItem.sku,
-          custom_field2: phone,
-          custom_field3: total,
         }),
       });
 

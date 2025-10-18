@@ -1,74 +1,39 @@
 import { NextResponse } from "next/server";
 import midtransClient from "midtrans-client";
 
-// 🔐 Ambil environment variables dari Vercel
+// 🔐 Environment variables
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || "";
 const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || "";
-const MIDTRANS_IS_PRODUCTION = false; // ✅ mode produksi
+const MIDTRANS_IS_PRODUCTION = process.env.NODE_ENV === "production";
 
-// ⚠️ Log peringatan jika key kosong
-if (!MIDTRANS_SERVER_KEY) {
-  console.error("❌ MIDTRANS_SERVER_KEY belum diatur di Environment Variable!");
+// ⚠️ Cek server/client key
+if (!MIDTRANS_SERVER_KEY || !MIDTRANS_CLIENT_KEY) {
+  console.error(
+    "❌ MIDTRANS_SERVER_KEY atau MIDTRANS_CLIENT_KEY belum diatur!"
+  );
 }
 
-// 🔧 Inisialisasi Midtrans Core API Client
+// 🔧 Inisialisasi Midtrans Core API
 const MIDTRANS_CLIENT = new midtransClient.CoreApi({
   isProduction: MIDTRANS_IS_PRODUCTION,
   serverKey: MIDTRANS_SERVER_KEY,
   clientKey: MIDTRANS_CLIENT_KEY,
 });
 
-// -------------------------------
-// 📦 Tipe data transaksi
-// -------------------------------
 interface ItemDetail {
   id: string;
-  name?: string;
-  price?: number;
-  quantity?: number;
-  buyer_sku_code?: string;
+  name: string;
+  price: number;
+  quantity: number;
 }
 
 interface CustomerDetails {
-  first_name?: string;
+  first_name: string;
   last_name?: string;
-  email?: string;
-  phone?: string;
+  email: string;
+  phone: string;
 }
 
-interface ChargeParams {
-  transaction_details: { order_id: string; gross_amount: number };
-  item_details: ItemDetail[];
-  customer_details: CustomerDetails;
-  custom_field1: string;
-  custom_field2: string;
-  custom_field3: number;
-  payment_type?: string;
-  qris?: { acquirer: string };
-  gopay?: { enable_callback: boolean; callback_url: string };
-  ovo?: { phone_number: string };
-  shopeepay?: { callback_url: string };
-  cstore?: { store: string; message: string };
-}
-
-interface Action {
-  name: string;
-  url: string;
-}
-
-interface ChargeResponse {
-  success?: boolean;
-  payment_type: string;
-  transaction_status?: string;
-  status_code?: string;
-  qr_string?: string;
-  payment_code?: string;
-  actions?: Action[];
-}
-
-// -------------------------------
-// 🚀 Endpoint untuk charge transaksi
-// -------------------------------
 export async function POST(req: Request) {
   try {
     const {
@@ -92,55 +57,41 @@ export async function POST(req: Request) {
       );
     }
 
-    const buyer_sku_code =
-      item_details?.[0]?.buyer_sku_code || item_details?.[0]?.id || "";
-    const customer_no = customer_details?.phone || "";
-
-    if (!buyer_sku_code || !customer_no) {
-      return NextResponse.json(
-        { error: "SKU pulsa atau nomor HP tidak boleh kosong" },
-        { status: 400 }
-      );
-    }
-
-    const baseParams: ChargeParams = {
+    // 🔹 Payload CoreApi minimal
+    const payload: any = {
       transaction_details: { order_id, gross_amount },
-      item_details,
       customer_details,
-      custom_field1: buyer_sku_code,
-      custom_field2: customer_no,
-      custom_field3: gross_amount,
+      item_details,
+      payment_type: payment_method,
     };
 
-    const chargeParams: ChargeParams = { ...baseParams };
-
-    // 🎯 Tentukan metode pembayaran
+    // 🎯 Tambahkan konfigurasi spesifik tiap payment_type
     switch (payment_method) {
       case "qris":
       case "dana":
-        chargeParams.payment_type = "qris";
-        chargeParams.qris = { acquirer: payment_method };
+        payload.payment_type = "qris";
+        payload.qris = { acquirer: payment_method };
         break;
       case "gopay":
-        chargeParams.payment_type = "gopay";
-        chargeParams.gopay = {
+        payload.payment_type = "gopay";
+        payload.gopay = {
           enable_callback: true,
           callback_url: `${process.env.NEXT_PUBLIC_SITE_URL}/payment-status`,
         };
         break;
       case "ovo":
-        chargeParams.payment_type = "ovo";
-        chargeParams.ovo = { phone_number: customer_details.phone! };
+        payload.payment_type = "ovo";
+        payload.ovo = { phone_number: customer_details.phone };
         break;
       case "shopeepay":
-        chargeParams.payment_type = "shopeepay";
-        chargeParams.shopeepay = {
+        payload.payment_type = "shopeepay";
+        payload.shopeepay = {
           callback_url: `${process.env.NEXT_PUBLIC_SITE_URL}/payment-status`,
         };
         break;
       case "alfamart":
-        chargeParams.payment_type = "cstore";
-        chargeParams.cstore = {
+        payload.payment_type = "cstore";
+        payload.cstore = {
           store: "alfamart",
           message: "Pembayaran di gerai Alfamart",
         };
@@ -153,12 +104,10 @@ export async function POST(req: Request) {
     }
 
     // 💰 Kirim request ke Midtrans Core API
-    const chargeResponse: ChargeResponse = await MIDTRANS_CLIENT.charge(
-      chargeParams
-    );
+    const chargeResponse = await MIDTRANS_CLIENT.charge(payload);
 
     // 🔗 Ambil URL redirect (jika ada)
-    const redirect_url = chargeResponse.actions?.find((a) =>
+    const redirect_url = chargeResponse.actions?.find((a: any) =>
       ["deeplink-redirect", "mobile", "desktop"].includes(a.name)
     )?.url;
 
@@ -174,8 +123,12 @@ export async function POST(req: Request) {
     });
   } catch (error: unknown) {
     console.error("❌ Midtrans Error:", error);
-    let message = "Gagal membuat transaksi Midtrans";
-    if (error instanceof Error) message = error.message;
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Gagal membuat transaksi",
+      },
+      { status: 500 }
+    );
   }
 }
