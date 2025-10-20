@@ -58,6 +58,7 @@ export default function PulsaPage() {
         const res = await fetch("/api/digiflazz/pricelist", { method: "POST" });
         const json: { data?: ApiPulsaItem[] } = await res.json();
         if (!Array.isArray(json.data)) return setPulsaList([]);
+
         const brands = operatorBrandMap[operator];
         const onlyPulsa: PulsaItem[] = json.data
           .filter(
@@ -71,8 +72,9 @@ export default function PulsaPage() {
             buyer_sku_code: i.buyer_sku_code,
           }))
           .sort((a, b) => a.harga - b.harga);
+
         setPulsaList(onlyPulsa);
-      } catch (err: unknown) {
+      } catch (err) {
         console.error(err);
         setPulsaList([]);
       } finally {
@@ -119,8 +121,7 @@ export default function PulsaPage() {
         : selectedItem.label;
 
     try {
-      // 🚫 hapus field transaction_details di sini (biar tidak double)
-      // Midtrans API hanya butuh order_id, gross_amount, customer_details, item_details, payment_method
+      // ✅ payload sesuai Core API Midtrans (tanpa field tidak dikenal)
       const body = {
         order_id,
         gross_amount: total,
@@ -158,10 +159,13 @@ export default function PulsaPage() {
       });
 
       if (data.qr_string) setCountdown(180);
-    } catch (err: unknown) {
+    } catch (err) {
       console.error(err);
-      if (err instanceof Error) alert(err.message);
-      else alert("Terjadi kesalahan saat membuat transaksi.");
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan saat membuat transaksi."
+      );
     }
   };
 
@@ -250,8 +254,8 @@ function TransactionModal({
   countdown?: number;
   onClose: () => void;
 }) {
-  const isQR = data.token ? data.token.startsWith("data:image") : false;
-  const isLink = data.token ? data.token.startsWith("http") : false;
+  const isQR = data.token?.startsWith("data:image");
+  const isLink = data.token?.startsWith("http");
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -267,23 +271,13 @@ function TransactionModal({
 
         {isQR && data.token && (
           <>
-            {data.token.startsWith("data:image") ? (
-              // fallback inline base64
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={data.token}
-                alt="QR Code"
-                className="mx-auto w-48 h-48 mb-4 rounded-lg border"
-              />
-            ) : (
-              <Image
-                src={data.token}
-                alt="QR Code"
-                width={192}
-                height={192}
-                className="mx-auto mb-4 rounded-lg border"
-              />
-            )}
+            <Image
+              src={data.token}
+              alt="QR Code"
+              width={192}
+              height={192}
+              className="mx-auto mb-4 rounded-lg border"
+            />
             {countdown && countdown > 0 && (
               <p className="text-sm text-gray-500 mt-2">
                 QR berlaku {Math.floor(countdown / 60)}:
@@ -293,7 +287,7 @@ function TransactionModal({
           </>
         )}
 
-        {isLink && data.token && (
+        {isLink && (
           <a
             href={data.token}
             target="_blank"
@@ -310,7 +304,7 @@ function TransactionModal({
               {data.token}
             </p>
             <button
-              onClick={() => navigator.clipboard.writeText(data.token || "")}
+              onClick={() => navigator.clipboard.writeText(data.token || " ")}
               className="text-xs text-emerald-600 hover:underline"
             >
               Salin Kode
