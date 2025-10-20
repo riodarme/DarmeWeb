@@ -43,10 +43,14 @@ export default function PLNPage() {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [listData, setListData] = useState<PlnItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<TransactionItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<TransactionItem | null>(
+    null
+  );
   const [showPayment, setShowPayment] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const [trxSuccessModal, setTrxSuccessModal] = useState<TrxModalData | null>(null);
+  const [trxSuccessModal, setTrxSuccessModal] = useState<TrxModalData | null>(
+    null
+  );
   const [countdown, setCountdown] = useState(0);
 
   const paymentRef = useRef<HTMLDivElement>(null);
@@ -64,7 +68,9 @@ export default function PLNPage() {
         const json: { data?: ApiPlnItem[] } = await res.json();
 
         if (!Array.isArray(json.data)) return setListData([]);
-        const onlyPln = (json.data as ApiPlnItem[]).filter((i: ApiPlnItem) => i.category?.toLowerCase() === "pln");
+        const onlyPln = (json.data as ApiPlnItem[]).filter(
+          (i: ApiPlnItem) => i.category?.toLowerCase() === "pln"
+        );
 
         setListData(
           onlyPln
@@ -91,7 +97,10 @@ export default function PLNPage() {
 
     setLoading(true);
     try {
-      const endpoint = mode === "prepaid" && item ? "/api/pln/inquiry-token" : "/api/pln/inquiry-postpaid";
+      const endpoint =
+        mode === "prepaid" && item
+          ? "/api/pln/inquiry-token"
+          : "/api/pln/inquiry-postpaid";
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -103,7 +112,8 @@ export default function PLNPage() {
       });
 
       const data: PlnInquiryResponse = await res.json();
-      if (!res.ok || !data.status) throw new Error(data.message || "Gagal melakukan inquiry PLN.");
+      if (!res.ok || !data.status)
+        throw new Error(data.message || "Gagal melakukan inquiry PLN.");
 
       setCustomerInfo(data.data);
 
@@ -123,21 +133,33 @@ export default function PLNPage() {
       }
 
       setShowPayment(true);
-      setTimeout(() => paymentRef.current?.scrollIntoView({ behavior: "smooth" }), 300);
+      setTimeout(
+        () => paymentRef.current?.scrollIntoView({ behavior: "smooth" }),
+        300
+      );
     } catch (err) {
       console.error("Inquiry Error:", err);
-      alert(err instanceof Error ? err.message : "Gagal melakukan inquiry PLN.");
+      alert(
+        err instanceof Error ? err.message : "Gagal melakukan inquiry PLN."
+      );
     } finally {
       setLoading(false);
     }
   };
 
   // 🔵 Handle transaksi (via Midtrans)
-  const handleConfirm = async (email: string, name: string, paymentMethod = "qris") => {
+  const handleConfirm = async (
+    email: string,
+    name: string,
+    paymentMethod = "qris"
+  ) => {
     if (!selectedItem) return alert("Pilih nominal/tagihan terlebih dahulu.");
     if (!email.includes("@")) return alert("Masukkan email yang valid.");
 
-    const { total, fee_value, fee_label } = calculateTotalWithFee(selectedItem.price, paymentMethod);
+    const { total, fee_value, fee_label } = calculateTotalWithFee(
+      selectedItem.price,
+      paymentMethod
+    );
     const order_id = `PLN-${Date.now()}`;
 
     try {
@@ -175,7 +197,9 @@ export default function PLNPage() {
       if (data.qr_string) setCountdown(180);
     } catch (err) {
       console.error("Transaction Error:", err);
-      alert(err instanceof Error ? err.message : "Gagal membuat transaksi PLN.");
+      alert(
+        err instanceof Error ? err.message : "Gagal membuat transaksi PLN."
+      );
     }
   };
 
@@ -195,7 +219,9 @@ export default function PLNPage() {
 
   return (
     <div className="p-4 max-w-xl mx-auto">
-      <h1 className="text-2xl md:text-3xl font-extrabold text-center mb-6 bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-400 bg-clip-text text-transparent">⚡ PLN Payment</h1>
+      <h1 className="text-2xl md:text-3xl font-extrabold text-center mb-6 bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-400 bg-clip-text text-transparent">
+        ⚡ PLN Payment
+      </h1>
 
       {/* Toggle */}
       <div className="flex justify-center mb-4">
@@ -209,7 +235,12 @@ export default function PLNPage() {
                 setCustomerInfo(null);
                 setSelectedItem(null);
               }}
-              className={`px-4 py-2 text-sm font-medium transition-all ${mode === type ? "bg-emerald-500 text-white shadow-inner" : "text-gray-600 hover:bg-gray-50"}`}>
+              className={`px-4 py-2 text-sm font-medium transition-all ${
+                mode === type
+                  ? "bg-emerald-500 text-white shadow-inner"
+                  : "text-gray-600 hover:bg-gray-50"
+              }`}
+            >
               {type === "prepaid" ? "⚡ Prabayar" : "💡 Pascabayar"}
             </button>
           ))}
@@ -237,12 +268,23 @@ export default function PLNPage() {
           <p className="font-semibold text-green-700 mb-2">👤 Data Pelanggan</p>
           <p className="text-sm">Nama: {customerInfo.name}</p>
           <p className="text-sm">Meter: {customerInfo.meter_no}</p>
-          <p className="text-sm">Daya: {"subscriber_power" in customerInfo ? customerInfo.subscriber_power ?? customerInfo.power ?? "-" : customerInfo.power ?? "-"} VA</p>
+          <p className="text-sm">
+            Daya:{" "}
+            {"subscriber_power" in customerInfo
+              ? customerInfo.subscriber_power ?? customerInfo.power ?? "-"
+              : customerInfo.power ?? "-"}{" "}
+            VA
+          </p>
 
           {"month" in customerInfo && (
             <>
               <p className="text-sm">Bulan: {customerInfo.month}</p>
-              <p className="text-sm font-bold text-green-700">Tagihan: Rp {(customerInfo as CustomerPostpaid).bill_amount.toLocaleString("id-ID")}</p>
+              <p className="text-sm font-bold text-green-700">
+                Tagihan: Rp{" "}
+                {(customerInfo as CustomerPostpaid).bill_amount.toLocaleString(
+                  "id-ID"
+                )}
+              </p>
             </>
           )}
         </div>
@@ -251,68 +293,142 @@ export default function PLNPage() {
       {/* Prabayar: pilih token */}
       <AnimatePresence>
         {mode === "prepaid" && customerId.length > 0 && (
-          <motion.div key="operator-section" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.25 }} className="mt-4">
-            <OperatorSection operator="PLN Prepaid" logo="/logos/pln.png" itemsList={listData} onSelect={(item) => handleInquiry(item)} loading={loading} />
+          <motion.div
+            key="operator-section"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25 }}
+            className="mt-4"
+          >
+            <OperatorSection
+              operator="PLN Prepaid"
+              logo="/logos/pln.png"
+              itemsList={listData}
+              onSelect={(item) => handleInquiry(item)}
+              loading={loading}
+            />
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Pascabayar: tombol cek tagihan */}
       {mode === "postpaid" && !showPayment && (
-        <button onClick={() => handleInquiry()} className="w-full mt-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-400 text-white font-semibold shadow hover:opacity-90 transition">
+        <button
+          onClick={() => handleInquiry()}
+          className="w-full mt-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-400 text-white font-semibold shadow hover:opacity-90 transition"
+        >
           🔍 Cek Tagihan
         </button>
       )}
 
       {/* Pembayaran */}
       {selectedItem && showPayment && (
-        <motion.div ref={paymentRef} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="mt-6 scroll-mt-20">
-          <PaymentSection items={[selectedItem]} onConfirm={handleConfirm} paymentMethods={["qris", "dana", "ovo", "gopay", "shopeepay", "alfamart"]} />
+        <motion.div
+          ref={paymentRef}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="mt-6 scroll-mt-20"
+        >
+          <PaymentSection
+            items={[selectedItem]}
+            onConfirm={handleConfirm}
+            paymentMethods={[
+              "qris",
+              "dana",
+              "ovo",
+              "gopay",
+              "shopeepay",
+              "alfamart",
+            ]}
+          />
         </motion.div>
       )}
 
       {/* Modal Transaksi */}
-      {trxSuccessModal?.visible && <TransactionModal data={trxSuccessModal} countdown={countdown} onClose={() => setTrxSuccessModal(null)} />}
+      {trxSuccessModal?.visible && (
+        <TransactionModal
+          data={trxSuccessModal}
+          countdown={countdown}
+          onClose={() => setTrxSuccessModal(null)}
+        />
+      )}
     </div>
   );
 }
 
-function TransactionModal({ data, countdown, onClose }: { data: TrxModalData; countdown?: number; onClose: () => void }) {
+function TransactionModal({
+  data,
+  countdown,
+  onClose,
+}: {
+  data: TrxModalData;
+  countdown?: number;
+  onClose: () => void;
+}) {
   const isQR = data.token?.startsWith("data:image");
   const isLink = data.token?.startsWith("http");
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }} className="bg-white p-6 rounded-2xl max-w-sm w-full shadow-xl text-center">
-        <h2 className="text-xl font-semibold mb-3 text-emerald-700">{data.message}</h2>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="bg-white p-6 rounded-2xl max-w-sm w-full shadow-xl text-center"
+      >
+        <h2 className="text-xl font-semibold mb-3 text-emerald-700">
+          {data.message}
+        </h2>
 
         {isQR && (
           <>
-            <Image src={data.token!} alt="QR Code" width={192} height={192} className="mx-auto mb-4 rounded-lg border" />
+            <Image
+              src={data.token!}
+              alt="QR Code"
+              width={192}
+              height={192}
+              className="mx-auto mb-4 rounded-lg border"
+            />
             {countdown && countdown > 0 && (
               <p className="text-sm text-gray-500 mt-2">
-                QR berlaku {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, "0")}
+                QR berlaku {Math.floor(countdown / 60)}:
+                {(countdown % 60).toString().padStart(2, "0")}
               </p>
             )}
           </>
         )}
 
         {isLink && (
-          <a href={data.token} target="_blank" rel="noopener noreferrer" className="block mt-4 bg-emerald-500 text-white py-2 rounded-lg font-medium hover:bg-emerald-600 transition">
+          <a
+            href={data.token}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block mt-4 bg-emerald-500 text-white py-2 rounded-lg font-medium hover:bg-emerald-600 transition"
+          >
             Buka Link Pembayaran
           </a>
         )}
 
         {!isQR && !isLink && data.token && (
           <div className="flex flex-col items-center gap-2">
-            <p className="text-sm font-mono bg-gray-100 p-2 rounded">{data.token}</p>
-            <button onClick={() => navigator.clipboard.writeText(data.token || "")} className="text-xs text-emerald-600 hover:underline">
+            <p className="text-sm font-mono bg-gray-100 p-2 rounded">
+              {data.token}
+            </p>
+            <button
+              onClick={() => navigator.clipboard.writeText(data.token || "")}
+              className="text-xs text-emerald-600 hover:underline"
+            >
               Salin Kode
             </button>
           </div>
         )}
 
-        <button className="mt-5 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition" onClick={onClose}>
+        <button
+          className="mt-5 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition"
+          onClick={onClose}
+        >
           Tutup
         </button>
       </motion.div>
