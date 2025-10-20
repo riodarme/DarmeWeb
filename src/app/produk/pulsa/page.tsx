@@ -111,6 +111,7 @@ export default function PulsaPage() {
       selectedItem.price,
       paymentMethod
     );
+
     const order_id = `PULSA-${Date.now()}`;
     const itemName =
       selectedItem.label.length > 50
@@ -118,29 +119,32 @@ export default function PulsaPage() {
         : selectedItem.label;
 
     try {
+      // 🚫 hapus field transaction_details di sini (biar tidak double)
+      // Midtrans API hanya butuh order_id, gross_amount, customer_details, item_details, payment_method
+      const body = {
+        order_id,
+        gross_amount: total,
+        payment_method: paymentMethod,
+        customer_details: {
+          first_name: name,
+          email,
+          phone,
+        },
+        item_details: [
+          {
+            id: selectedItem.sku,
+            name: itemName,
+            price: selectedItem.price,
+            quantity: 1,
+          },
+          { id: "fee", name: fee_label, price: fee_value, quantity: 1 },
+        ],
+      };
+
       const res = await fetch("/api/midtrans/transaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order_id,
-          gross_amount: total,
-          payment_method: paymentMethod,
-          transaction_details: { order_id, gross_amount: total },
-          customer_details: {
-            first_name: name,
-            email,
-            phone,
-          },
-          item_details: [
-            {
-              id: selectedItem.sku,
-              name: itemName,
-              price: selectedItem.price,
-              quantity: 1,
-            },
-            { id: "fee", name: fee_label, price: fee_value, quantity: 1 },
-          ],
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
@@ -152,6 +156,7 @@ export default function PulsaPage() {
         token: data.qr_string || data.redirect_url || data.payment_code || "",
         order_id,
       });
+
       if (data.qr_string) setCountdown(180);
     } catch (err: unknown) {
       console.error(err);

@@ -41,9 +41,38 @@ interface TransactionRequest {
   payment_method: PaymentMethod;
 }
 
+// 🧹 Fungsi pembersih payload frontend
+function sanitizePayload(body: Record<string, unknown>): TransactionRequest {
+  const {
+    order_id,
+    gross_amount,
+    customer_details,
+    item_details,
+    payment_method,
+  } = body;
+
+  if (typeof order_id !== "string") throw new Error("order_id harus string");
+  if (typeof gross_amount !== "number")
+    throw new Error("gross_amount harus number");
+  if (typeof payment_method !== "string")
+    throw new Error("payment_method harus string");
+
+  return {
+    order_id,
+    gross_amount,
+    customer_details: customer_details as CustomerDetails,
+    item_details: Array.isArray(item_details)
+      ? (item_details as ItemDetail[])
+      : undefined,
+    payment_method: payment_method as PaymentMethod,
+  };
+}
+
 export async function POST(req: Request) {
   try {
-    const body: TransactionRequest = await req.json();
+    const rawBody = await req.json();
+    const body = sanitizePayload(rawBody);
+
     const {
       order_id,
       gross_amount,
@@ -52,19 +81,13 @@ export async function POST(req: Request) {
       payment_method,
     } = body;
 
-    if (!order_id || !gross_amount || !payment_method) {
-      return NextResponse.json(
-        { error: "Data transaksi tidak lengkap" },
-        { status: 400 }
-      );
-    }
-
     const payload: Record<string, unknown> = {
       transaction_details: { order_id, gross_amount },
       customer_details,
       item_details,
     };
 
+    // 🔧 pilih struktur payload berdasarkan metode
     switch (payment_method) {
       case "qris":
         Object.assign(payload, {
@@ -114,22 +137,31 @@ export async function POST(req: Request) {
         );
     }
 
-    const chargeResponse = await MIDTRANS_CLIENT.charge(payload);
+    // 🧠 hapus field undefined/null sebelum dikirim ke Midtrans
+    const safePayload = JSON.parse(
+      JSON.stringify(payload, (_key, value) =>
+        value === undefined || value === null ? undefined : value
+      )
+    );
 
-    const actions = (chargeResponse as Record<string, any>).actions || [];
-    const redirectAction = actions.find((a: { name: string }) =>
+    const chargeResponse = await MIDTRANS_CLIENT.charge(safePayload);
+    const responseObj = chargeResponse as Record<string, unknown>;
+
+    const actions = Array.isArray(responseObj.actions)
+      ? (responseObj.actions as { name: string; url?: string }[])
+      : [];
+    const redirectAction = actions.find((a) =>
       ["deeplink-redirect", "mobile", "desktop"].includes(a.name)
     );
 
     return NextResponse.json({
       success: true,
       order_id,
-      payment_type: (chargeResponse as any).payment_type,
+      payment_type: responseObj.payment_type,
       transaction_status:
-        (chargeResponse as any).transaction_status ||
-        (chargeResponse as any).status_code,
-      qr_string: (chargeResponse as any).qr_string,
-      payment_code: (chargeResponse as any).payment_code,
+        responseObj.transaction_status || responseObj.status_code,
+      qr_string: responseObj.qr_string,
+      payment_code: responseObj.payment_code,
       redirect_url: redirectAction?.url,
     });
   } catch (error: unknown) {
