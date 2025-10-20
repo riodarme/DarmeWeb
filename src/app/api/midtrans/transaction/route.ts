@@ -44,7 +44,7 @@ export async function POST(req: Request) {
         payload.payment_type = "gopay";
         payload.gopay = {
           enable_callback: true,
-          callback_url: `${process.env.NEXT_PUBLIC_SITE_URL}/payment-status`,
+          callback_url: `${process.env.NEXT_PUBLIC_SITE_URL}/status`,
         };
         break;
       case "dana":
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
       case "shopeepay":
         payload.payment_type = "shopeepay";
         payload.shopeepay = {
-          callback_url: `${process.env.NEXT_PUBLIC_SITE_URL}/payment-status`,
+          callback_url: `${process.env.NEXT_PUBLIC_SITE_URL}/status`,
         };
         break;
       case "alfamart":
