@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import midtransClient from "midtrans-client";
 
-const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || "";
-const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || "";
+const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY!;
+const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY!;
 const MIDTRANS_IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 const MIDTRANS_CLIENT = new midtransClient.CoreApi({
