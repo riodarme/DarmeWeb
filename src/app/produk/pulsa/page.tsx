@@ -126,8 +126,8 @@ export default function PulsaPage() {
     try {
       const body = {
         order_id,
-        gross_amount: total,
-        payment_method: paymentMethod,
+        gross_amount: Number(total),
+        payment_method: paymentMethod, // ini akan diubah jadi payment_type di backend
         customer_details: {
           first_name: name,
           email,
@@ -135,12 +135,15 @@ export default function PulsaPage() {
         },
         item_details: [
           {
-            id: selectedItem.sku,
             name: itemName,
-            price: selectedItem.price,
+            price: Number(selectedItem.price),
             quantity: 1,
           },
-          { id: "fee", name: fee_label, price: fee_value, quantity: 1 },
+          {
+            name: fee_label || "Biaya tambahan",
+            price: Number(fee_value),
+            quantity: 1,
+          },
         ],
       };
 

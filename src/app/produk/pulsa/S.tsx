@@ -1,323 +1,212 @@
-"use client";
-
-import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import Image from "next/image";
-
-import UniversalInput from "@/components/UniversalInput";
-import OperatorSection from "@/components/OperatorSection";
-import PaymentSection, { TransactionItem } from "@/components/PaymentSection";
-import { Operator, PulsaItem, ApiPulsaItem } from "@/types";
-import {
-  operatorPrefixes,
-  operatorBrandMap,
-  operatorLogos,
-} from "@/constants/operator";
-import { applyPulsaMarkup, calculateTotalWithFee } from "@/utils/pricing";
-
-interface TrxModalData {
-  visible: boolean;
-  message: string;
-  token?: string;
-  order_id?: string;
-}
-
-export default function PulsaPage() {
-  const [phone, setPhone] = useState("");
-  const [operator, setOperator] = useState<Operator | "">("");
-  const [pulsaList, setPulsaList] = useState<PulsaItem[]>([]);
-  const [selectedItem, setSelectedItem] = useState<TransactionItem | null>(
-    null
-  );
-  const [loading, setLoading] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
-  const [trxSuccessModal, setTrxSuccessModal] = useState<TrxModalData | null>(
-    null
-  );
-  const [countdown, setCountdown] = useState(0);
-  const paymentRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => setHydrated(true), []);
-
-  const detectOperator = (value: string) => {
-    setPhone(value);
-    if (value.length < 4) return setOperator("");
-    const prefix = value.slice(0, 4);
-    const found =
-      (Object.entries(operatorPrefixes) as [Operator, string[]][]).find(
-        ([, list]) => list.includes(prefix)
-      )?.[0] ?? "";
-    setOperator(found);
-  };
-
-  useEffect(() => {
-    if (!operator || !hydrated) return;
-    const fetchPulsa = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/digiflazz/pricelist", { method: "POST" });
-        const json: { data?: ApiPulsaItem[] } = await res.json();
-        if (!Array.isArray(json.data)) return setPulsaList([]);
-        const brands = operatorBrandMap[operator];
-        const onlyPulsa: PulsaItem[] = json.data
-          .filter(
-            (i) =>
-              i.category?.toLowerCase() === "pulsa" &&
-              brands.some((b) => i.brand?.toLowerCase().includes(b))
-          )
-          .map((i) => ({
-            nominal: i.product_name,
-            harga: applyPulsaMarkup(Number(i.price ?? 0)),
-            buyer_sku_code: i.buyer_sku_code,
-          }))
-          .sort((a, b) => a.harga - b.harga);
-        setPulsaList(onlyPulsa);
-      } catch (err: unknown) {
-        console.error(err);
-        setPulsaList([]);
-      } finally {
-        setLoading(false);
-      }
+var Util = function() {
+    var b = {
+        LOWER: 0,
+        UPPER: 1
+    }
+      , i = function(a) {
+        a = parseFloat(a);
+        return !isNaN(a) && isFinite(a)
+    }
+      , e = function(a) {
+        return "function" == typeof a
+    }
+      , g = function(a) {
+        return "string" == typeof a
+    }
+      , c = function(a) {
+        return a && "object" == typeof a || a instanceof Object
+    }
+      , d = function(a) {
+        return "undefined" == typeof a
+    }
+      , h = function(a, f) {
+        if (c(a)) {
+            var f = {}, b;
+            for (b in a)
+                f[b] = h(a[b])
+        } else
+            f = a;
+        return f
+    }
+      , j = function(a, f, b) {
+        if (!g(a))
+            return {};
+        for (var c = {}, a = a.split(f), d = 0; d < a.length; ++d)
+            f = a[d].split(b, 2),
+            c[f[0]] = 1 < f.length ? decodeURIComponent(f[1]).replace(/\+/g, " ") : "";
+        return c
     };
-    fetchPulsa();
-  }, [operator, hydrated]);
-
-  const handleSelectItem = (item: PulsaItem) => {
-    setSelectedItem({
-      label: item.nominal,
-      price: item.harga,
-      sku: item.buyer_sku_code,
-    });
-  };
-
-  useEffect(() => {
-    if (selectedItem && paymentRef.current) {
-      paymentRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+    return {
+        CASE: b,
+        inherit: function(a, f) {
+            var b = function() {};
+            b.prototype = f.prototype;
+            var b = new b, c;
+            for (c in a.prototype)
+                b[c] = a.prototype[c];
+            a.prototype = b;
+            a.prototype["super"] = f.prototype
+        },
+        isNumber: i,
+        isPosition: function(a) {
+            return a && i(a.top) && i(a.left)
+        },
+        isFunction: e,
+        isJQuery: function(a) {
+            return a instanceof $
+        },
+        arrayRemove: function(a, b) {
+            for (var c = [], d = 0; d < a.length; ++d)
+                b != a[d] && c.push(a[d]);
+            return c
+        },
+        isArray: function(a) {
+            return a instanceof Array
+        },
+        isString: g,
+        stringsEqual: function(a, b, c) {
+            a = ["^", a, "$"].join("");
+            return (c ? RegExp(a) : RegExp(a, "i")).test(b)
+        },
+        isObject: c,
+        isUndefined: d,
+        isOfSameType: function(a, b) {
+            return typeof a == typeof b
+        },
+        clone: h,
+        extend: function() {
+            for (var a = 1; a < arguments.length; a++)
+                for (var b in arguments[a])
+                    arguments[a].hasOwnProperty(b) && (arguments[0][b] = arguments[a][b]);
+            return arguments[0]
+        },
+        getObjectValues: function(a) {
+            var b = [];
+            if (c(a))
+                for (var d in a)
+                    e(a[d]) || b.push(a[d]);
+            return b
+        },
+        parseParams: function(a) {
+            return j(a, "&", "=")
+        },
+        parseParamsCustom: j,
+        changeCase: function(a, c, e) {
+            if (!g(a) || 0 == $.trim(a).length)
+                return a;
+            var h = !1;
+            d(c) && (h = !0);
+            if (!h && (!i(c) || 0 > c || c >= a.length))
+                return a;
+            switch (e) {
+            case b.UPPER:
+                e = "toUpperCase";
+                break;
+            default:
+                e = "toLowerCase"
+            }
+            if (h)
+                return a[e]();
+            h = [];
+            0 < c && h.push(a.slice(0, c));
+            h.push(a.charAt(c)[e]());
+            h.push(a.slice(c + 1));
+            return h.join("")
+        }
     }
-  }, [selectedItem]);
-
-  const handleConfirm = async (
-    email: string,
-    name: string,
-    paymentMethod = "qris"
-  ) => {
-    if (!selectedItem || !selectedItem.sku || !phone || !email.includes("@"))
-      return;
-
-    const { total, fee_value, fee_label } = calculateTotalWithFee(
-      selectedItem.price,
-      paymentMethod
-    );
-    const order_id = `PULSA-${Date.now()}`;
-    const itemName =
-      selectedItem.label.length > 50
-        ? selectedItem.label.slice(0, 47) + "..."
-        : selectedItem.label;
-
-    try {
-      const res = await fetch("/api/midtrans/transaction", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order_id,
-          gross_amount: total,
-          customer_details: { name, email, phone },
-          item_details: [
-            {
-              id: selectedItem.sku,
-              name: itemName,
-              price: selectedItem.price,
-              quantity: 1,
-            },
-            { id: "fee", name: fee_label, price: fee_value, quantity: 1 },
-          ],
-          payment_method: paymentMethod,
-          custom_field1: selectedItem.sku,
-          custom_field2: phone,
-          custom_field3: total,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Gagal membuat transaksi");
-
-      setTrxSuccessModal({
-        visible: true,
-        message: "Transaksi berhasil dibuat!",
-        token: data.qr_string || data.redirect_url || data.payment_code || "",
-        order_id,
-      });
-      if (data.qr_string) setCountdown(180);
-    } catch (err: unknown) {
-      console.error(err);
-      if (err instanceof Error) alert(err.message);
-      else alert("Terjadi kesalahan saat membuat transaksi.");
+}();
+var TimeUtil = function() {
+    var b, i = (new Date).getTimezoneOffset(), e = Math.abs(i), g = Math.floor(e / 60), e = e - 60 * g;
+    b = (0 > i ? "+" : "-") + (g ? (10 > g ? "0" : "") + g : "00") + ":" + (e ? (10 > e ? "0" : "") + e : "00");
+    return {
+        getTimeZoneOffset: function() {
+            return b
+        }
     }
-  };
-
-  useEffect(() => {
-    if (!trxSuccessModal?.visible || countdown <= 0) return;
-    const timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
-    return () => clearInterval(timer);
-  }, [trxSuccessModal?.visible, countdown]);
-
-  useEffect(() => {
-    if (countdown === 0 && trxSuccessModal?.token?.startsWith("data:image")) {
-      setTrxSuccessModal(null);
+}();
+var Html5GameManager = function() {
+    var b = {}
+      , i = null
+      , e = function(c) {
+        try {
+            var d = JSON.parse(c);
+            console.log("receiveMessageFromGame", d);
+            if (Util.isObject(d)) {
+                var h = Util.isObject(d.args) ? d.args : {};
+                d.args = h;
+                switch (d.common) {
+                case "EVT_GET_CONFIGURATION":
+                    h.config = b.gameConfig;
+                    var e = JSON.stringify(d);
+                    try {
+                        var a = JSON.parse(e);
+                        console.log("sendMessageToGame", a)
+                    } catch (f) {
+                        console.error("sendMessageToGame", f, e)
+                    }
+                    try {
+                        Util.isFunction(window.sendToGame) ? window.sendToGame(e) : console.log("sendMessageToGame", "sendToGame is not function")
+                    } catch (k) {
+                        console.error("sendMessageToGame", k, e)
+                    }
+                    break;
+                case "EVT_OPEN_LOBBY":
+                    g(b.lobbyUri, b.mobileLobbyUri);
+                    break;
+                case "EVT_CLOSE_GAME":
+                    g(b.lobbyUri, b.mobileLobbyUri);
+                    break;
+                case "EVT_OPEN_CASHIER":
+                    g(b.cashierUri, b.mobileCashierUri);
+                    break;
+                case "UNLOGGED":
+                    null != i && b.extendSessionUri && clearInterval(i)
+                }
+            }
+        } catch (l) {
+            console.error("receiveMessageFromGame", l, c)
+        }
     }
-  }, [countdown, trxSuccessModal?.token]);
-
-  if (!hydrated) return null;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100 py-8 px-4">
-      <div className="container mx-auto max-w-2xl">
-        <motion.div
-          className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-emerald-100"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <UniversalInput
-            value={phone}
-            onChange={detectOperator}
-            operator={operator}
-            logo={operator ? operatorLogos[operator] : undefined}
-            title="Isi Pulsa Online"
-          />
-          {operator && (
-            <OperatorSection
-              operator={operator}
-              logo={operatorLogos[operator]}
-              itemsList={pulsaList}
-              onSelect={handleSelectItem}
-              loading={loading}
-            />
-          )}
-        </motion.div>
-
-        {selectedItem && (
-          <motion.div
-            ref={paymentRef}
-            className="mt-6 scroll-mt-20"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            <PaymentSection
-              items={[selectedItem]}
-              onConfirm={handleConfirm}
-              paymentMethods={[
-                "qris",
-                "dana",
-                "ovo",
-                "gopay",
-                "shopeepay",
-                "alfamart",
-              ]}
-            />
-          </motion.div>
-        )}
-
-        {trxSuccessModal?.visible && (
-          <TransactionModal
-            data={trxSuccessModal}
-            countdown={countdown}
-            onClose={() => setTrxSuccessModal(null)}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TransactionModal({
-  data,
-  countdown,
-  onClose,
-}: {
-  data: TrxModalData;
-  countdown?: number;
-  onClose: () => void;
-}) {
-  const isQR = data.token ? data.token.startsWith("data:image") : false;
-  const isLink = data.token ? data.token.startsWith("http") : false;
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.3 }}
-        className="bg-white p-6 rounded-2xl max-w-sm w-full shadow-xl text-center"
-      >
-        <h2 className="text-xl font-semibold mb-3 text-emerald-700">
-          {data.message}
-        </h2>
-
-        {isQR && data.token && (
-          <>
-            {data.token.startsWith("data:image") ? (
-              // fallback inline base64
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={data.token}
-                alt="QR Code"
-                className="mx-auto w-48 h-48 mb-4 rounded-lg border"
-              />
-            ) : (
-              <Image
-                src={data.token}
-                alt="QR Code"
-                width={192}
-                height={192}
-                className="mx-auto mb-4 rounded-lg border"
-              />
-            )}
-            {countdown && countdown > 0 && (
-              <p className="text-sm text-gray-500 mt-2">
-                QR berlaku {Math.floor(countdown / 60)}:
-                {(countdown % 60).toString().padStart(2, "0")}
-              </p>
-            )}
-          </>
-        )}
-
-        {isLink && data.token && (
-          <a
-            href={data.token}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block mt-4 bg-emerald-500 text-white py-2 rounded-lg font-medium hover:bg-emerald-600 transition"
-          >
-            Buka Link Pembayaran
-          </a>
-        )}
-
-        {!isQR && !isLink && data.token && (
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-sm font-mono bg-gray-100 p-2 rounded">
-              {data.token}
-            </p>
-            <button
-              onClick={() => navigator.clipboard.writeText(data.token || "")}
-              className="text-xs text-emerald-600 hover:underline"
-            >
-              Salin Kode
-            </button>
-          </div>
-        )}
-
-        <button
-          className="mt-5 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition"
-          onClick={onClose}
-        >
-          Tutup
-        </button>
-      </motion.div>
-    </div>
-  );
-}
+      , g = function(b, d) {
+        UHT_DEVICE_TYPE.MOBILE && d ? /^js:\/\/.*/i.test(d) ? (new Function(d.substring(5, d.length)))() : d && window.open(d, "_self") : b && (/^js:\/\/.*/i.test(b) ? (new Function(b.substring(5, b.length)))() : b && window.open(b, "_self"))
+    };
+    extendSessionRequest = function() {
+        if (b.extendSessionUri)
+            for (var c = b.extendSessionUri.split(","), d = ["_t", (new Date).getTime()].join("="), e = 0; e < c.length; e++)
+                try {
+                    (new Image).src = [c[e], /\?/.test(c[e]) ? "&" : "?", d].join("")
+                } catch (g) {
+                    console.error("Extend Session Request", g)
+                }
+    }
+    ;
+    return {
+        init: function(c) {
+            Util.extend(b, c);
+            c = b.contextPath || "";
+            Util.extend(b, {
+                loginUri: [c, "/common/pages/unlogged.jsp"].join(""),
+                entryUri: [c, "/mobile/generic/"].join("")
+            });
+            Util.extend(b, {
+                lobbyUri: b.lobbyUrl,
+                cashierUri: b.cashierUrl,
+                mobileLobbyUri: b.mobileLobbyUrl,
+                mobileCashierUri: b.mobileCashierUrl,
+                extendSessionUri: b.extendSessionUrl
+            });
+            var c = JSON.parse(b.gameConfig)
+              , d = c.HISTORY;
+            if (d) {
+                if (!c.hasOwnProperty("historyType") || "external" != c.historyType)
+                    d += "&tz=" + encodeURIComponent(TimeUtil.getTimeZoneOffset()),
+                    c.HISTORY = d;
+                Util.extend(b, {
+                    gameConfig: c
+                })
+            }
+            b.extendSessionInterval && b.extendSessionUri && (i = setInterval(extendSessionRequest, b.extendSessionInterval));
+            window.sendToAdapter = e
+        }
+    }
+}();
