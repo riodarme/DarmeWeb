@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { TransactionQR } from "@/components/QrisModal";
 import Image from "next/image";
 
 import UniversalInput from "@/components/UniversalInput";
@@ -50,6 +51,7 @@ export default function PulsaPage() {
     setOperator(found);
   };
 
+  // 🔹 Ambil daftar produk pulsa
   useEffect(() => {
     if (!operator || !hydrated) return;
     const fetchPulsa = async () => {
@@ -101,6 +103,7 @@ export default function PulsaPage() {
     }
   }, [selectedItem]);
 
+  // 🔹 Proses transaksi ke backend
   const handleConfirm = async (
     email: string,
     name: string,
@@ -121,7 +124,6 @@ export default function PulsaPage() {
         : selectedItem.label;
 
     try {
-      // ✅ payload sesuai Core API Midtrans (tanpa field tidak dikenal)
       const body = {
         order_id,
         gross_amount: total,
@@ -151,14 +153,18 @@ export default function PulsaPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Gagal membuat transaksi");
 
+      // 💡 Simpan hasil QR / link / kode bayar
+      const token =
+        data.qr_string || data.redirect_url || data.payment_code || "";
+
       setTrxSuccessModal({
         visible: true,
         message: "Transaksi berhasil dibuat!",
-        token: data.qr_string || data.redirect_url || data.payment_code || "",
+        token,
         order_id,
       });
 
-      if (data.qr_string) setCountdown(180);
+      if (data.qr_string) setCountdown(180); // hitung mundur 3 menit
     } catch (err) {
       console.error(err);
       alert(
@@ -169,23 +175,19 @@ export default function PulsaPage() {
     }
   };
 
+  // 🔹 Timer QR
   useEffect(() => {
     if (!trxSuccessModal?.visible || countdown <= 0) return;
     const timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [trxSuccessModal?.visible, countdown]);
 
-  useEffect(() => {
-    if (countdown === 0 && trxSuccessModal?.token?.startsWith("data:image")) {
-      setTrxSuccessModal(null);
-    }
-  }, [countdown, trxSuccessModal?.token]);
-
   if (!hydrated) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100 py-8 px-4">
       <div className="container mx-auto max-w-2xl">
+        {/* Input nomor HP */}
         <motion.div
           className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-emerald-100"
           initial={{ opacity: 0, y: 10 }}
@@ -210,6 +212,7 @@ export default function PulsaPage() {
           )}
         </motion.div>
 
+        {/* Metode pembayaran */}
         {selectedItem && (
           <motion.div
             ref={paymentRef}
@@ -233,6 +236,7 @@ export default function PulsaPage() {
           </motion.div>
         )}
 
+        {/* Modal transaksi */}
         {trxSuccessModal?.visible && (
           <TransactionModal
             data={trxSuccessModal}
@@ -245,6 +249,7 @@ export default function PulsaPage() {
   );
 }
 
+// 🟩 Modal hasil transaksi
 function TransactionModal({
   data,
   countdown,
@@ -254,8 +259,10 @@ function TransactionModal({
   countdown?: number;
   onClose: () => void;
 }) {
-  const isQR = data.token?.startsWith("data:image");
-  const isLink = data.token?.startsWith("http");
+  const token = data.token ?? "";
+  const isLink = token.startsWith("http");
+  const isQRIS = token.startsWith("000201"); // QRIS string Midtrans
+  const isPaymentCode = !isLink && !isQRIS && token.length > 0;
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -269,27 +276,13 @@ function TransactionModal({
           {data.message}
         </h2>
 
-        {isQR && data.token && (
-          <>
-            <Image
-              src={data.token}
-              alt="QR Code"
-              width={192}
-              height={192}
-              className="mx-auto mb-4 rounded-lg border"
-            />
-            {countdown && countdown > 0 && (
-              <p className="text-sm text-gray-500 mt-2">
-                QR berlaku {Math.floor(countdown / 60)}:
-                {(countdown % 60).toString().padStart(2, "0")}
-              </p>
-            )}
-          </>
-        )}
+        {/* ✅ QRIS otomatis */}
+        {isQRIS && <TransactionQR code={token} onClose={onClose} />}
 
+        {/* 🔗 Link pembayaran */}
         {isLink && (
           <a
-            href={data.token}
+            href={token}
             target="_blank"
             rel="noopener noreferrer"
             className="block mt-4 bg-emerald-500 text-white py-2 rounded-lg font-medium hover:bg-emerald-600 transition"
@@ -298,18 +291,24 @@ function TransactionModal({
           </a>
         )}
 
-        {!isQR && !isLink && data.token && (
+        {/* 🔢 Kode pembayaran (Alfamart, dll) */}
+        {isPaymentCode && (
           <div className="flex flex-col items-center gap-2">
-            <p className="text-sm font-mono bg-gray-100 p-2 rounded">
-              {data.token}
-            </p>
+            <p className="text-sm font-mono bg-gray-100 p-2 rounded">{token}</p>
             <button
-              onClick={() => navigator.clipboard.writeText(data.token || " ")}
+              onClick={() => navigator.clipboard.writeText(token)}
               className="text-xs text-emerald-600 hover:underline"
             >
               Salin Kode
             </button>
           </div>
+        )}
+
+        {/* ⏳ Timer QRIS */}
+        {isQRIS && countdown && countdown > 0 && (
+          <p className="text-xs text-gray-500 mt-2">
+            QR berlaku {countdown}s lagi
+          </p>
         )}
 
         <button
