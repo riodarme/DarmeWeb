@@ -3,7 +3,7 @@ import midtransClient from "midtrans-client";
 
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY!;
 const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY!;
-const MIDTRANS_IS_PRODUCTION = false;
+const MIDTRANS_IS_PRODUCTION = true;
 
 const core = new midtransClient.CoreApi({
   isProduction: MIDTRANS_IS_PRODUCTION,
