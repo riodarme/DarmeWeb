@@ -3,7 +3,7 @@ import midtransClient from "midtrans-client";
 
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY!;
 const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY!;
-const MIDTRANS_IS_PRODUCTION = false; // ⚠️ ubah ke true jika sudah live
+const MIDTRANS_IS_PRODUCTION = false;
 
 const core = new midtransClient.CoreApi({
   isProduction: MIDTRANS_IS_PRODUCTION,
@@ -11,9 +11,55 @@ const core = new midtransClient.CoreApi({
   clientKey: MIDTRANS_CLIENT_KEY,
 });
 
+// 🧱 Type Definitions
+interface ItemDetail {
+  id?: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface CustomerDetails {
+  first_name: string;
+  email: string;
+  phone: string;
+}
+
+type PaymentMethod =
+  | "qris"
+  | "gopay"
+  | "dana"
+  | "shopeepay"
+  | "ovo"
+  | "alfamart";
+
+interface MidtransRequestBody {
+  order_id: string;
+  gross_amount: number;
+  payment_method: PaymentMethod;
+  customer_details?: Partial<CustomerDetails>;
+  item_details?: ItemDetail[];
+}
+
+interface MidtransAction {
+  name: string;
+  method: string;
+  url: string;
+}
+
+interface MidtransResponse {
+  status_code: string;
+  transaction_status?: string;
+  payment_type?: string;
+  qr_string?: string;
+  payment_code?: string;
+  actions?: MidtransAction[];
+  [key: string]: unknown;
+}
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body: MidtransRequestBody = await req.json();
     const {
       order_id,
       gross_amount,
@@ -22,6 +68,7 @@ export async function POST(req: Request) {
       item_details,
     } = body;
 
+    // 🧩 Validasi dasar
     if (!order_id || !gross_amount || !payment_method) {
       return NextResponse.json(
         { error: "Invalid transaction payload" },
@@ -29,112 +76,111 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Pastikan data numerik valid
-    const amount = Number(gross_amount);
-    if (isNaN(amount) || amount <= 0) {
+    const safeAmount = Number(gross_amount);
+    if (isNaN(safeAmount) || safeAmount <= 0) {
       return NextResponse.json(
         { error: "Invalid gross_amount value" },
         { status: 400 }
       );
     }
 
-    // ✅ Format item_details agar sesuai spesifikasi Midtrans
-    const safeItems =
-      Array.isArray(item_details) && item_details.length > 0
-        ? item_details.map((item: any) => ({
-            name: String(item.name || "Item"),
-            price: Number(item.price) || 0,
-            quantity: Number(item.quantity) || 1,
-          }))
-        : undefined;
+    const safeItems: ItemDetail[] = Array.isArray(item_details)
+      ? item_details.map((item) => ({
+          id: item.id || undefined,
+          name: String(item.name || "Item"),
+          price: Number(item.price) || 0,
+          quantity: Number(item.quantity) || 1,
+        }))
+      : [];
 
-    // ✅ Format customer_details agar aman
-    const safeCustomer = customer_details
-      ? {
-          first_name: customer_details.first_name || "Customer",
-          email: customer_details.email || "noemail@example.com",
-          phone: customer_details.phone || "",
-        }
-      : undefined;
-
-    // ✅ Struktur dasar payload
-    const payload: any = {
-      transaction_details: {
-        order_id,
-        gross_amount: amount,
-      },
-      ...(safeCustomer && { customer_details: safeCustomer }),
-      ...(safeItems && { item_details: safeItems }),
+    const safeCustomer: CustomerDetails = {
+      first_name: customer_details?.first_name || "Customer",
+      email: customer_details?.email || "noemail@example.com",
+      phone: customer_details?.phone || "",
     };
 
-    // ✅ Tentukan tipe pembayaran
+    const payload: Record<string, unknown> = {
+      transaction_details: {
+        order_id,
+        gross_amount: safeAmount,
+      },
+      customer_details: safeCustomer,
+      item_details: safeItems,
+    };
+
+    // 🧩 Mapping Payment Type
+    const callbackBase =
+      process.env.NEXT_PUBLIC_APP_URL || "https://darmemart.store/";
     switch (payment_method) {
       case "qris":
-        payload.payment_type = "qris";
-        payload.qris = { acquirer: "gopay" };
+        Object.assign(payload, {
+          payment_type: "qris",
+          qris: { acquirer: "gopay" },
+        });
         break;
-
       case "gopay":
-        payload.payment_type = "gopay";
-        payload.gopay = {
-          enable_callback: true,
-          callback_url: "https://yourdomain.com/thankyou",
-        };
-        break;
-
-      case "shopeepay":
-        payload.payment_type = "shopeepay";
-        payload.shopee_pay = {
-          callback_url: "https://yourdomain.com/thankyou",
-        };
-        break;
-
-      case "ovo":
-        payload.payment_type = "ovo";
-        payload.ovo = { phone: safeCustomer?.phone };
-        break;
-
-      case "alfamart":
-        payload.payment_type = "cstore";
-        payload.cstore = {
-          store: "alfamart",
-          message: "Pembayaran di Alfamart",
-        };
-        break;
-
       case "dana":
-        payload.payment_type = "qris";
-        payload.qris = { acquirer: "dana" };
+      case "shopeepay":
+        Object.assign(payload, {
+          payment_type: payment_method,
+          [payment_method]: {
+            enable_callback: true,
+            callback_url: `${callbackBase}/status/${order_id}`,
+          },
+        });
         break;
-
+      case "ovo":
+        Object.assign(payload, {
+          payment_type: "ovo",
+          ovo: { phone_number: safeCustomer.phone.replace(/\D/g, "") },
+        });
+        break;
+      case "alfamart":
+        Object.assign(payload, {
+          payment_type: "cstore",
+          cstore: {
+            store: "alfamart",
+            message: "Silakan bayar di kasir Alfamart",
+          },
+        });
+        break;
       default:
-        throw new Error(`Unsupported payment method: ${payment_method}`);
+        return NextResponse.json(
+          { error: `Unsupported payment method: ${payment_method}` },
+          { status: 400 }
+        );
     }
 
-    // ✅ Hapus key kosong/null supaya JSON bersih
-    Object.keys(payload).forEach((key) => {
-      if (
-        payload[key] == null ||
-        (typeof payload[key] === "object" &&
-          Object.keys(payload[key]).length === 0)
-      ) {
-        delete payload[key];
-      }
+    // 🚀 Kirim ke Midtrans
+    const response = (await core.charge(payload)) as MidtransResponse;
+
+    // 🧠 Ambil URL redirect / QR / kode bayar
+    const redirect_url =
+      response.actions?.find(
+        (a) => a.name === "deeplink-redirect" || a.name === "generate-qr-code"
+      )?.url || null;
+
+    return NextResponse.json({
+      ...response,
+      redirect_url,
+      qr_string: response.qr_string ?? null,
+      payment_code: response.payment_code ?? null,
     });
+  } catch (error) {
+    if (error && typeof error === "object" && "ApiResponse" in error) {
+      console.error("❌ Midtrans API Error:", (error as any).ApiResponse);
+      return NextResponse.json(
+        {
+          error: "Midtrans API error",
+          details: (error as any).ApiResponse,
+        },
+        { status: 500 }
+      );
+    }
 
-    console.log("🚀 Final Payload:", JSON.stringify(payload, null, 2));
-
-    // 🔥 Kirim request ke Midtrans
-    const response = await core.charge(payload);
-
-    return NextResponse.json(response);
-  } catch (error: any) {
-    console.error("Midtrans Error:", error.ApiResponse || error.message);
+    console.error("❌ Unexpected error:", error);
     return NextResponse.json(
-      {
-        error: error.message || "Midtrans API error",
-        details: error.ApiResponse || null,
-      },
+      { error: (error as Error).message || "Unknown error" },
       { status: 500 }
     );
   }

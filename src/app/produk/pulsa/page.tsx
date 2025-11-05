@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { TransactionQR } from "@/components/QrisModal";
 import Image from "next/image";
+import { TransactionQR } from "@/components/QrisModal";
 
 import UniversalInput from "@/components/UniversalInput";
 import OperatorSection from "@/components/OperatorSection";
@@ -40,6 +40,7 @@ export default function PulsaPage() {
 
   useEffect(() => setHydrated(true), []);
 
+  // 🔹 Deteksi operator dari prefix
   const detectOperator = (value: string) => {
     setPhone(value);
     if (value.length < 4) return setOperator("");
@@ -77,7 +78,7 @@ export default function PulsaPage() {
 
         setPulsaList(onlyPulsa);
       } catch (err) {
-        console.error(err);
+        console.error("Gagal ambil daftar pulsa:", err);
         setPulsaList([]);
       } finally {
         setLoading(false);
@@ -103,20 +104,18 @@ export default function PulsaPage() {
     }
   }, [selectedItem]);
 
-  // 🔹 Proses transaksi ke backend
+  // 🔹 Proses transaksi (sinkron dgn Midtrans Core API)
   const handleConfirm = async (
     email: string,
     name: string,
     paymentMethod = "qris"
   ) => {
-    if (!selectedItem || !selectedItem.sku || !phone || !email.includes("@"))
-      return;
+    if (!selectedItem || !phone || !email.includes("@")) return;
 
     const { total, fee_value, fee_label } = calculateTotalWithFee(
       selectedItem.price,
       paymentMethod
     );
-
     const order_id = `PULSA-${Date.now()}`;
     const itemName =
       selectedItem.label.length > 50
@@ -124,21 +123,17 @@ export default function PulsaPage() {
         : selectedItem.label;
 
     try {
-      const body = {
+      const payload = {
         order_id,
         gross_amount: Number(total),
-        payment_method: paymentMethod, // ini akan diubah jadi payment_type di backend
+        payment_method: paymentMethod,
         customer_details: {
           first_name: name,
           email,
           phone,
         },
         item_details: [
-          {
-            name: itemName,
-            price: Number(selectedItem.price),
-            quantity: 1,
-          },
+          { name: itemName, price: Number(selectedItem.price), quantity: 1 },
           {
             name: fee_label || "Biaya tambahan",
             price: Number(fee_value),
@@ -150,14 +145,13 @@ export default function PulsaPage() {
       const res = await fetch("/api/midtrans/transaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Gagal membuat transaksi");
 
-      // 💡 Simpan hasil QR / link / kode bayar
-      const token =
+      const token: string =
         data.qr_string || data.redirect_url || data.payment_code || "";
 
       setTrxSuccessModal({
@@ -167,13 +161,11 @@ export default function PulsaPage() {
         order_id,
       });
 
-      if (data.qr_string) setCountdown(180); // hitung mundur 3 menit
+      if (data.qr_string) setCountdown(180); // 3 menit QRIS timeout
     } catch (err) {
-      console.error(err);
+      console.error("Transaksi gagal:", err);
       alert(
-        err instanceof Error
-          ? err.message
-          : "Terjadi kesalahan saat membuat transaksi."
+        err instanceof Error ? err.message : "Terjadi kesalahan pada transaksi."
       );
     }
   };
@@ -204,6 +196,7 @@ export default function PulsaPage() {
             logo={operator ? operatorLogos[operator] : undefined}
             title="Isi Pulsa Online"
           />
+
           {operator && (
             <OperatorSection
               operator={operator}
@@ -264,7 +257,7 @@ function TransactionModal({
 }) {
   const token = data.token ?? "";
   const isLink = token.startsWith("http");
-  const isQRIS = token.startsWith("000201"); // QRIS string Midtrans
+  const isQRIS = token.startsWith("000201");
   const isPaymentCode = !isLink && !isQRIS && token.length > 0;
 
   return (
@@ -279,10 +272,8 @@ function TransactionModal({
           {data.message}
         </h2>
 
-        {/* ✅ QRIS otomatis */}
         {isQRIS && <TransactionQR code={token} onClose={onClose} />}
 
-        {/* 🔗 Link pembayaran */}
         {isLink && (
           <a
             href={token}
@@ -294,7 +285,6 @@ function TransactionModal({
           </a>
         )}
 
-        {/* 🔢 Kode pembayaran (Alfamart, dll) */}
         {isPaymentCode && (
           <div className="flex flex-col items-center gap-2">
             <p className="text-sm font-mono bg-gray-100 p-2 rounded">{token}</p>
@@ -307,7 +297,6 @@ function TransactionModal({
           </div>
         )}
 
-        {/* ⏳ Timer QRIS */}
         {isQRIS && countdown && countdown > 0 && (
           <p className="text-xs text-gray-500 mt-2">
             QR berlaku {countdown}s lagi
