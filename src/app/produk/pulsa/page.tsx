@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import Image from "next/image";
 import { TransactionQR } from "@/components/QrisModal";
 
 import UniversalInput from "@/components/UniversalInput";
@@ -40,30 +39,33 @@ export default function PulsaPage() {
 
   useEffect(() => setHydrated(true), []);
 
-  // 🔹 Deteksi operator dari prefix
   const detectOperator = (value: string) => {
     setPhone(value);
+
     if (value.length < 4) return setOperator("");
+
     const prefix = value.slice(0, 4);
     const found =
       (Object.entries(operatorPrefixes) as [Operator, string[]][]).find(
         ([, list]) => list.includes(prefix)
       )?.[0] ?? "";
+
     setOperator(found);
   };
 
-  // 🔹 Ambil daftar produk pulsa
   useEffect(() => {
     if (!operator || !hydrated) return;
+
     const fetchPulsa = async () => {
       setLoading(true);
       try {
         const res = await fetch("/api/digiflazz/pricelist", { method: "POST" });
         const json: { data?: ApiPulsaItem[] } = await res.json();
+
         if (!Array.isArray(json.data)) return setPulsaList([]);
 
         const brands = operatorBrandMap[operator];
-        const onlyPulsa: PulsaItem[] = json.data
+        const onlyPulsa = json.data
           .filter(
             (i) =>
               i.category?.toLowerCase() === "pulsa" &&
@@ -78,12 +80,13 @@ export default function PulsaPage() {
 
         setPulsaList(onlyPulsa);
       } catch (err) {
-        console.error("Gagal ambil daftar pulsa:", err);
+        console.error("Gagal fetch pulsa:", err);
         setPulsaList([]);
       } finally {
         setLoading(false);
       }
     };
+
     fetchPulsa();
   }, [operator, hydrated]);
 
@@ -104,18 +107,19 @@ export default function PulsaPage() {
     }
   }, [selectedItem]);
 
-  // 🔹 Proses transaksi (sinkron dgn Midtrans Core API)
   const handleConfirm = async (
     email: string,
     name: string,
     paymentMethod = "qris"
   ) => {
-    if (!selectedItem || !phone || !email.includes("@")) return;
+    if (!selectedItem || !selectedItem.sku || !phone || !email.includes("@"))
+      return;
 
     const { total, fee_value, fee_label } = calculateTotalWithFee(
       selectedItem.price,
       paymentMethod
     );
+
     const order_id = `PULSA-${Date.now()}`;
     const itemName =
       selectedItem.label.length > 50
@@ -123,66 +127,67 @@ export default function PulsaPage() {
         : selectedItem.label;
 
     try {
-      const payload = {
-        order_id,
-        gross_amount: Number(total),
-        payment_method: paymentMethod,
-        customer_details: {
-          first_name: name,
-          email,
-          phone,
-        },
-        item_details: [
-          { name: itemName, price: Number(selectedItem.price), quantity: 1 },
-          {
-            name: fee_label || "Biaya tambahan",
-            price: Number(fee_value),
-            quantity: 1,
-          },
-        ],
-      };
-
       const res = await fetch("/api/midtrans/transaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          order_id,
+          gross_amount: total,
+          customer_details: { name, email, phone },
+          item_details: [
+            {
+              id: selectedItem.sku,
+              name: itemName,
+              price: selectedItem.price,
+              quantity: 1,
+            },
+            { id: "fee", name: fee_label, price: fee_value, quantity: 1 },
+          ],
+          payment_method: paymentMethod,
+          custom_field1: selectedItem.sku,
+          custom_field2: phone,
+          custom_field3: total,
+        }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Gagal membuat transaksi");
 
-      const token: string =
-        data.qr_string || data.redirect_url || data.payment_code || "";
-
       setTrxSuccessModal({
         visible: true,
         message: "Transaksi berhasil dibuat!",
-        token,
+        token: data.qr_string || data.redirect_url || data.payment_code || "",
         order_id,
       });
 
-      if (data.qr_string) setCountdown(180); // 3 menit QRIS timeout
+      if (data.qr_string) setCountdown(180);
     } catch (err) {
-      console.error("Transaksi gagal:", err);
+      console.error(err);
       alert(
-        err instanceof Error ? err.message : "Terjadi kesalahan pada transaksi."
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan saat membuat transaksi."
       );
     }
   };
 
-  // 🔹 Timer QR
   useEffect(() => {
     if (!trxSuccessModal?.visible || countdown <= 0) return;
     const timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [trxSuccessModal?.visible, countdown]);
 
+  useEffect(() => {
+    if (countdown === 0 && trxSuccessModal?.token?.startsWith("data:image")) {
+      setTrxSuccessModal(null);
+    }
+  }, [countdown, trxSuccessModal?.token]);
+
   if (!hydrated) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-emerald-100 py-8 px-4">
       <div className="container mx-auto max-w-2xl">
-        {/* Input nomor HP */}
         <motion.div
           className="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-emerald-100"
           initial={{ opacity: 0, y: 10 }}
@@ -208,7 +213,6 @@ export default function PulsaPage() {
           )}
         </motion.div>
 
-        {/* Metode pembayaran */}
         {selectedItem && (
           <motion.div
             ref={paymentRef}
@@ -232,7 +236,6 @@ export default function PulsaPage() {
           </motion.div>
         )}
 
-        {/* Modal transaksi */}
         {trxSuccessModal?.visible && (
           <TransactionModal
             data={trxSuccessModal}
@@ -245,7 +248,6 @@ export default function PulsaPage() {
   );
 }
 
-// 🟩 Modal hasil transaksi
 function TransactionModal({
   data,
   countdown,
@@ -257,7 +259,7 @@ function TransactionModal({
 }) {
   const token = data.token ?? "";
   const isLink = token.startsWith("http");
-  const isQRIS = token.startsWith("000201");
+  const isQRIS = token.length > 100 && !token.startsWith("http");
   const isPaymentCode = !isLink && !isQRIS && token.length > 0;
 
   return (

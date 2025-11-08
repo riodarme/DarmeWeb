@@ -22,13 +22,6 @@ declare module "midtrans-client" {
       price: number;
       quantity: number;
     }[];
-    actions?: {
-      name: string;
-      url: string;
-    }[];
-    qr_string?: string;
-    payment_code?: string;
-    status_code?: string;
   }
 
   export interface RefundParams {
@@ -56,10 +49,10 @@ declare module "midtrans-client" {
     constructor(options: {
       isProduction: boolean;
       serverKey: string;
-      clientKey?: string; // tetap opsional, bisa diabaikan kalau tidak pakai
+      clientKey?: string;
     });
 
-    // 🔹 Semua transaksi langsung lewat CoreApi
+    // 🔹 Semua transaksi langsung di CoreApi
     status(orderId: string): Promise<TransactionStatus>;
     cancel(orderId: string): Promise<TransactionStatus>;
     expire(orderId: string): Promise<TransactionStatus>;

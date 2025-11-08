@@ -48,7 +48,7 @@ export async function GET(req: Request) {
     const coreApi = new midtransClient.CoreApi({
       isProduction: process.env.NODE_ENV === "production",
       serverKey: process.env.MIDTRANS_SERVER_KEY!,
-      clientKey: process.env.MIDTRANS_CLIENT_KEY!,
+      clientKey: process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY!,
     }) as unknown as MidtransCoreApi;
 
     const status = await coreApi.status(order_id);

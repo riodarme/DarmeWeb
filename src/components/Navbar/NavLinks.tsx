@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface NavLinksProps {
   isScrolled: boolean;
@@ -12,25 +11,20 @@ interface NavLinksProps {
 export default function NavLinks({ isScrolled }: NavLinksProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  const textColor = isScrolled ? "text-gray-800" : "text-white";
-  const hoverUnderline =
-    "absolute left-0 -bottom-1 h-[2px] bg-green-500 rounded-full";
-
   return (
-    <div className="hidden md:flex items-center space-x-8 relative font-[Times_New_Roman]">
-      {/* ==== Beranda ==== */}
-      <Link href="/" className={`relative group ${textColor}`}>
+    <div className="hidden md:flex items-center space-x-6 relative font-[Times_New_Roman]">
+      {/* Beranda */}
+      <Link
+        href="/"
+        className={`relative group ${
+          isScrolled ? "text-gray-700" : "text-white"
+        }`}
+      >
         Beranda
-        <motion.span
-          layoutId="underline"
-          className={`${hoverUnderline}`}
-          initial={{ width: 0 }}
-          whileHover={{ width: "100%" }}
-          transition={{ duration: 0.25 }}
-        />
+        <span className="absolute left-0 -bottom-1 w-0 group-hover:w-full transition-all h-[2px] bg-green-500"></span>
       </Link>
 
-      {/* ==== Produk Dropdown ==== */}
+      {/* Produk Dropdown */}
       <div
         className="relative"
         onMouseEnter={() => setDropdownOpen(true)}
@@ -38,69 +32,64 @@ export default function NavLinks({ isScrolled }: NavLinksProps) {
       >
         <button
           type="button"
-          className={`flex items-center gap-1 relative group ${textColor}`}
+          className={`flex items-center gap-1 relative group ${
+            isScrolled ? "text-gray-700" : "text-white"
+          }`}
         >
           Produk
           <ChevronDown size={16} />
-          <motion.span
-            layoutId="underline"
-            className={`${hoverUnderline}`}
-            initial={{ width: 0 }}
-            whileHover={{ width: "100%" }}
-            transition={{ duration: 0.25 }}
-          />
+          <span className="absolute left-0 -bottom-1 w-0 group-hover:w-full transition-all h-[2px] bg-green-500"></span>
         </button>
 
-        <AnimatePresence>
-          {dropdownOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="absolute left-0 mt-3 w-48 bg-white/90 backdrop-blur-md shadow-lg border border-green-100 rounded-2xl py-2 z-50"
+        {dropdownOpen && (
+          <div className="absolute left-0 mt-2 w-44 bg-white shadow-lg rounded-lg py-2 animate-fadeSlide z-50">
+            <Link
+              href="/produk/pulsa"
+              className="block px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600"
             >
-              {[
-                { href: "/produk/pulsa", label: "Pulsa" },
-                { href: "/produk/data", label: "Data" },
-                { href: "/produk/pln", label: "PLN" },
-                { href: "/produk/emoney", label: "E-Money" },
-              ].map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="block px-5 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600 rounded-lg transition"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+              Pulsa
+            </Link>
+            <Link
+              href="/produk/data"
+              className="block px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600"
+            >
+              Data
+            </Link>
+            <Link
+              href="/produk/pln"
+              className="block px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600"
+            >
+              PLN
+            </Link>
+            <Link
+              href="/produk/emoney"
+              className="block px-4 py-2 text-gray-700 hover:bg-green-50 hover:text-green-600"
+            >
+              E-Money
+            </Link>
+          </div>
+        )}
       </div>
-
-      {/* ==== Tentang ==== */}
-      <Link href="#tentang" className={`relative group ${textColor}`}>
+      {/* Tentang */}
+      <Link
+        href="#tentang"
+        className={`relative group ${
+          isScrolled ? "text-gray-700" : "text-white"
+        }`}
+      >
         Tentang
-        <motion.span
-          layoutId="underline"
-          className={`${hoverUnderline}`}
-          initial={{ width: 0 }}
-          whileHover={{ width: "100%" }}
-          transition={{ duration: 0.25 }}
-        />
+        <span className="absolute left-0 -bottom-1 w-0 group-hover:w-full transition-all h-[2px] bg-green-500"></span>
       </Link>
 
-      {/* ==== Kontak ==== */}
-      <Link href="#kontak" className={`relative group ${textColor}`}>
+      {/* Kontak */}
+      <Link
+        href="#kontak"
+        className={`relative group ${
+          isScrolled ? "text-gray-700" : "text-white"
+        }`}
+      >
         Kontak
-        <motion.span
-          layoutId="underline"
-          className={`${hoverUnderline}`}
-          initial={{ width: 0 }}
-          whileHover={{ width: "100%" }}
-          transition={{ duration: 0.25 }}
-        />
+        <span className="absolute left-0 -bottom-1 w-0 group-hover:w-full transition-all h-[2px] bg-green-500"></span>
       </Link>
     </div>
   );

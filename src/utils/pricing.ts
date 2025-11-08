@@ -1,17 +1,5 @@
-// 💡 Fungsi margin dasar pulsa
+// 💡 Fungsi markup dasar pulsa
 export const applyPulsaMarkup = (price: number | undefined): number => {
-  if (!price || isNaN(price)) price = 0;
-
-  let markup: number;
-  if (price <= 25000) markup = 1500;
-  else if (price <= 50000) markup = 2000;
-  else markup = 5500;
-
-  const newPrice = price + markup;
-  return Math.ceil(newPrice / 500) * 500;
-};
-// 💡 Fungsi margin dasar Paket Data
-export const applyDataMarkup = (price: number | undefined): number => {
   if (!price || isNaN(price)) price = 0;
 
   let markup: number;
@@ -24,10 +12,7 @@ export const applyDataMarkup = (price: number | undefined): number => {
 };
 
 // 💰 Hitung total harga + fee berdasarkan metode pembayaran
-export const calculateTotalWithFee = (
-  basePrice: number,
-  method: string
-): { total: number; fee_value: number; fee_label: string } => {
+export const calculateTotalWithFee = (basePrice: number, method: string): { total: number; fee_value: number; fee_label: string } => {
   let total = basePrice;
   let fee_value = 0;
   let fee_label = "Tanpa Biaya Tambahan";

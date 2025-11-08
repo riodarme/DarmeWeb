@@ -1,187 +1,180 @@
+// /app/api/midtrans/transaction/route.ts
 import { NextResponse } from "next/server";
 import midtransClient from "midtrans-client";
 
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY!;
-const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY!;
-const MIDTRANS_IS_PRODUCTION = true;
-
-const core = new midtransClient.CoreApi({
-  isProduction: MIDTRANS_IS_PRODUCTION,
+const MIDTRANS_CLIENT = new midtransClient.CoreApi({
+  isProduction: false,
   serverKey: MIDTRANS_SERVER_KEY,
-  clientKey: MIDTRANS_CLIENT_KEY,
+  clientKey: process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY!,
 });
 
-// 🧱 Type Definitions
 interface ItemDetail {
-  id?: string;
-  name: string;
-  price: number;
-  quantity: number;
+  id: string;
+  name?: string;
+  price?: number;
+  quantity?: number;
+  buyer_sku_code?: string;
 }
 
 interface CustomerDetails {
-  first_name: string;
-  email: string;
-  phone: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone?: string;
 }
 
-type PaymentMethod =
-  | "qris"
-  | "gopay"
-  | "dana"
-  | "shopeepay"
-  | "ovo"
-  | "alfamart";
-
-interface MidtransRequestBody {
-  order_id: string;
-  gross_amount: number;
-  payment_method: PaymentMethod;
-  customer_details?: Partial<CustomerDetails>;
-  item_details?: ItemDetail[];
+interface ChargeParams {
+  transaction_details: { order_id: string; gross_amount: number };
+  item_details: ItemDetail[];
+  customer_details: CustomerDetails;
+  custom_field1: string;
+  custom_field2: string;
+  custom_field3: number;
+  payment_type?: string;
+  qris?: { acquirer: string };
+  gopay?: { enable_callback: boolean; callback_url: string };
+  shopeepay?: { callback_url: string };
+  cstore?: { store: string; message: string };
+  ovo?: { phone_number: string };
 }
 
-interface MidtransAction {
+interface Action {
   name: string;
-  method: string;
   url: string;
 }
 
-interface MidtransResponse {
-  status_code: string;
+interface ChargeResponse {
+  payment_type: string;
   transaction_status?: string;
-  payment_type?: string;
+  status_code?: string;
   qr_string?: string;
   payment_code?: string;
-  actions?: MidtransAction[];
-  [key: string]: unknown;
+  actions?: Action[];
 }
 
 export async function POST(req: Request) {
   try {
-    const body: MidtransRequestBody = await req.json();
     const {
       order_id,
       gross_amount,
-      payment_method,
       customer_details,
       item_details,
-    } = body;
+      payment_method,
+    } = await req.json();
 
-    // 🧩 Validasi dasar
     if (!order_id || !gross_amount || !payment_method) {
       return NextResponse.json(
-        { error: "Invalid transaction payload" },
+        { error: "Data transaksi tidak lengkap" },
         { status: 400 }
       );
     }
 
-    const safeAmount = Number(gross_amount);
-    if (isNaN(safeAmount) || safeAmount <= 0) {
+    const buyer_sku_code =
+      item_details?.[0]?.buyer_sku_code || item_details?.[0]?.id || "";
+    const customer_no = customer_details?.phone || "";
+
+    if (!buyer_sku_code || !customer_no) {
       return NextResponse.json(
-        { error: "Invalid gross_amount value" },
+        { error: "SKU pulsa atau nomor HP tidak boleh kosong" },
         { status: 400 }
       );
     }
 
-    const safeItems: ItemDetail[] = Array.isArray(item_details)
-      ? item_details.map((item) => ({
-          id: item.id || undefined,
-          name: String(item.name || "Item"),
-          price: Number(item.price) || 0,
-          quantity: Number(item.quantity) || 1,
-        }))
-      : [];
-
-    const safeCustomer: CustomerDetails = {
-      first_name: customer_details?.first_name || "Customer",
-      email: customer_details?.email || "noemail@example.com",
-      phone: customer_details?.phone || "",
+    const baseParams: ChargeParams = {
+      transaction_details: { order_id, gross_amount },
+      item_details,
+      customer_details,
+      custom_field1: buyer_sku_code,
+      custom_field2: customer_no,
+      custom_field3: gross_amount,
     };
 
-    const payload: Record<string, unknown> = {
-      transaction_details: {
-        order_id,
-        gross_amount: safeAmount,
-      },
-      customer_details: safeCustomer,
-      item_details: safeItems,
-    };
+    const chargeParams: ChargeParams = { ...baseParams };
 
-    // 🧩 Mapping Payment Type
-    const callbackBase =
-      process.env.NEXT_PUBLIC_APP_URL || "https://darmemart.store/";
     switch (payment_method) {
       case "qris":
-        Object.assign(payload, {
-          payment_type: "qris",
-          qris: { acquirer: "gopay" },
-        });
+        chargeParams.payment_type = "qris";
+        chargeParams.qris = { acquirer: "gopay" }; // ✅ Gunakan GoPay QR
         break;
+
       case "gopay":
-      case "dana":
+        chargeParams.payment_type = "gopay";
+        chargeParams.gopay = {
+          enable_callback: true,
+          callback_url: `${process.env.NEXT_PUBLIC_SITE_URL}/payment-status`,
+        };
+        break;
+
       case "shopeepay":
-        Object.assign(payload, {
-          payment_type: payment_method,
-          [payment_method]: {
-            enable_callback: true,
-            callback_url: `${callbackBase}/status/${order_id}`,
-          },
-        });
+        chargeParams.payment_type = "shopeepay";
+        chargeParams.shopeepay = {
+          callback_url: `${process.env.NEXT_PUBLIC_SITE_URL}/payment-status`,
+        };
         break;
+
       case "ovo":
-        Object.assign(payload, {
-          payment_type: "ovo",
-          ovo: { phone_number: safeCustomer.phone.replace(/\D/g, "") },
-        });
+        chargeParams.payment_type = "ovo";
+        chargeParams.ovo = { phone_number: customer_details.phone! };
         break;
+
       case "alfamart":
-        Object.assign(payload, {
-          payment_type: "cstore",
-          cstore: {
-            store: "alfamart",
-            message: "Silakan bayar di kasir Alfamart",
-          },
-        });
+        chargeParams.payment_type = "cstore";
+        chargeParams.cstore = {
+          store: "alfamart",
+          message: "Pembayaran di gerai Alfamart",
+        };
         break;
+
+      case "dana":
+        // ❌ Core API tidak mendukung langsung DANA.
+        // ✅ Gunakan fallback ke GoPay agar tidak error.
+        chargeParams.payment_type = "gopay";
+        chargeParams.gopay = {
+          enable_callback: true,
+          callback_url: `${process.env.NEXT_PUBLIC_SITE_URL}/payment-status`,
+        };
+        break;
+
       default:
         return NextResponse.json(
-          { error: `Unsupported payment method: ${payment_method}` },
+          { error: `Metode pembayaran tidak dikenali: ${payment_method}` },
           { status: 400 }
         );
     }
 
-    // 🚀 Kirim ke Midtrans
-    const response = (await core.charge(payload)) as MidtransResponse;
+    const chargeResponse: ChargeResponse = await MIDTRANS_CLIENT.charge(
+      chargeParams
+    );
 
-    // 🧠 Ambil URL redirect / QR / kode bayar
-    const redirect_url =
-      response.actions?.find(
-        (a) => a.name === "deeplink-redirect" || a.name === "generate-qr-code"
-      )?.url || null;
+    // 🔹 Konversi qr_string jadi base64 agar bisa langsung dipakai <img src="...">
+    const qrBase64 =
+      chargeResponse.qr_string &&
+      `data:image/png;base64,${Buffer.from(chargeResponse.qr_string).toString(
+        "base64"
+      )}`;
+
+    // 🔹 Ambil redirect URL untuk e-wallet / cstore
+    const redirect_url = chargeResponse.actions?.find((a) =>
+      ["deeplink-redirect", "mobile", "desktop"].includes(a.name)
+    )?.url;
 
     return NextResponse.json({
-      ...response,
+      success: true,
+      order_id,
+      payment_type: chargeResponse.payment_type,
+      transaction_status:
+        chargeResponse.transaction_status || chargeResponse.status_code,
+      qr_string: qrBase64 || chargeResponse.qr_string,
+      payment_code: chargeResponse.payment_code,
       redirect_url,
-      qr_string: response.qr_string ?? null,
-      payment_code: response.payment_code ?? null,
     });
-  } catch (error) {
-    if (error && typeof error === "object" && "ApiResponse" in error) {
-      console.error("❌ Midtrans API Error:", (error as any).ApiResponse);
-      return NextResponse.json(
-        {
-          error: "Midtrans API error",
-          details: (error as any).ApiResponse,
-        },
-        { status: 500 }
-      );
-    }
-
-    console.error("❌ Unexpected error:", error);
-    return NextResponse.json(
-      { error: (error as Error).message || "Unknown error" },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    console.error("❌ Midtrans Error:", error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Gagal membuat transaksi Midtrans";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

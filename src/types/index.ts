@@ -68,20 +68,7 @@ export interface ApiEmoneyItem {
   price: number; // Harga dasar dari Digiflazz
   buyer_sku_code: string;
 }
-// ---------- Item untuk E-Money ----------
-export interface GameItem {
-  nominal: string; // Contoh: "Saldo GoPay 20.000"
-  harga: number; // Harga jual (sudah termasuk markup)
-  buyer_sku_code: string; // Kode produk Digiflazz
-}
 
-export interface ApiGameItem {
-  category: string; // Biasanya: "E-Money"
-  brand: string; // Contoh: "GoPay", "OVO", "Dana", dll.
-  product_name: string; // Contoh: "GoPay 20000"
-  price: number; // Harga dasar dari Digiflazz
-  buyer_sku_code: string;
-}
 // ---------- Midtrans Snap Window ----------
 export interface SnapWindow extends Window {
   snap?: {
