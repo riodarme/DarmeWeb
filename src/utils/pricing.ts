@@ -12,7 +12,10 @@ export const applyPulsaMarkup = (price: number | undefined): number => {
 };
 
 // 💰 Hitung total harga + fee berdasarkan metode pembayaran
-export const calculateTotalWithFee = (basePrice: number, method: string): { total: number; fee_value: number; fee_label: string } => {
+export const calculateTotalWithFee = (
+  basePrice: number,
+  method: string
+): { total: number; fee_value: number; fee_label: string } => {
   let total = basePrice;
   let fee_value = 0;
   let fee_label = "Tanpa Biaya Tambahan";

@@ -68,18 +68,3 @@ export interface ApiEmoneyItem {
   price: number; // Harga dasar dari Digiflazz
   buyer_sku_code: string;
 }
-
-// ---------- Midtrans Snap Window ----------
-export interface SnapWindow extends Window {
-  snap?: {
-    pay: (
-      token: string,
-      callbacks?: {
-        onSuccess?: () => void;
-        onPending?: () => void;
-        onError?: () => void;
-        onClose?: () => void;
-      }
-    ) => void;
-  };
-}
