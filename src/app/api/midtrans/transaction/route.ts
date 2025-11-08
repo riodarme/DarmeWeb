@@ -1,13 +1,7 @@
-// /app/api/midtrans/transaction/route.ts
 import { NextResponse } from "next/server";
-import midtransClient from "midtrans-client";
 
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY!;
-const MIDTRANS_CLIENT = new midtransClient.CoreApi({
-  isProduction: true,
-  serverKey: MIDTRANS_SERVER_KEY,
-  clientKey: process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY!,
-});
+const MIDTRANS_API_URL = "https://api.midtrans.com/v2/charge";
 
 interface ItemDetail {
   id: string;
@@ -92,10 +86,11 @@ export async function POST(req: Request) {
 
     const chargeParams: ChargeParams = { ...baseParams };
 
+    // 🔹 Pilih metode pembayaran
     switch (payment_method) {
       case "qris":
         chargeParams.payment_type = "qris";
-        chargeParams.qris = { acquirer: "gopay" }; // ✅ Gunakan GoPay QR
+        chargeParams.qris = { acquirer: "gopay" };
         break;
 
       case "gopay":
@@ -127,8 +122,8 @@ export async function POST(req: Request) {
         break;
 
       case "dana":
-        // ❌ Core API tidak mendukung langsung DANA.
-        // ✅ Gunakan fallback ke GoPay agar tidak error.
+        // ❌ Core API tidak mendukung langsung DANA
+        // ✅ fallback ke GoPay agar tidak error
         chargeParams.payment_type = "gopay";
         chargeParams.gopay = {
           enable_callback: true,
@@ -143,18 +138,29 @@ export async function POST(req: Request) {
         );
     }
 
-    const chargeResponse: ChargeResponse = await MIDTRANS_CLIENT.charge(
-      chargeParams
-    );
+    // ✅ Kirim manual request ke Midtrans (tanpa SDK)
+    const response = await fetch(MIDTRANS_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization:
+          "Basic " + Buffer.from(`${MIDTRANS_SERVER_KEY}:`).toString("base64"),
+      },
+      body: JSON.stringify(chargeParams),
+    });
 
-    // 🔹 Konversi qr_string jadi base64 agar bisa langsung dipakai <img src="...">
-    const qrBase64 =
-      chargeResponse.qr_string &&
-      `data:image/png;base64,${Buffer.from(chargeResponse.qr_string).toString(
-        "base64"
-      )}`;
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("❌ Midtrans API Error:", errText);
+      return NextResponse.json(
+        { error: `Midtrans error: ${response.status} - ${errText}` },
+        { status: response.status }
+      );
+    }
 
-    // 🔹 Ambil redirect URL untuk e-wallet / cstore
+    const chargeResponse: ChargeResponse = await response.json();
+
+    // 🔹 Ambil redirect URL jika ada
     const redirect_url = chargeResponse.actions?.find((a) =>
       ["deeplink-redirect", "mobile", "desktop"].includes(a.name)
     )?.url;
@@ -165,7 +171,7 @@ export async function POST(req: Request) {
       payment_type: chargeResponse.payment_type,
       transaction_status:
         chargeResponse.transaction_status || chargeResponse.status_code,
-      qr_string: qrBase64 || chargeResponse.qr_string,
+      qr_string: chargeResponse.qr_string,
       payment_code: chargeResponse.payment_code,
       redirect_url,
     });
